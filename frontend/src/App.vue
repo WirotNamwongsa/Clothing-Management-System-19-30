@@ -1,23 +1,119 @@
 <template>
   <div class="app">
     <div class="container">
+      <!-- Header -->
       <header class="header">
-        <h1 class="title">Clothing Management</h1>
-        <p class="subtitle">Manage your wardrobe with style</p>
+        <div class="header-text">
+          <span class="eyebrow">Your closet, organized</span>
+          <h1 class="title">Wardrobe</h1>
+        </div>
+        <button class="btn-add" @click="openAddForm">
+          <span class="btn-add-icon">+</span>
+          Add item
+        </button>
       </header>
 
-      <div class="content">
-        <!-- Add/Edit Form -->
-        <div class="form-section">
-          <h2 class="section-title">{{ isEditing ? 'Edit Item' : 'Add New Item' }}</h2>
+      <!-- Stats strip -->
+      <div class="stats-strip">
+        <div class="stat">
+          <span class="stat-value">{{ clothingItems.length }}</span>
+          <span class="stat-label">Items</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat">
+          <span class="stat-value">฿{{ formatNumber(totalValue) }}</span>
+          <span class="stat-label">Total value</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat">
+          <span class="stat-value" :class="{ 'stat-warning': lowStockCount > 0 }">{{ lowStockCount }}</span>
+          <span class="stat-label">Running low</span>
+        </div>
+      </div>
+
+      <!-- List -->
+      <div class="list-section">
+        <div v-if="loading" class="loading">
+          <div class="spinner"></div>
+          <p>Loading your wardrobe</p>
+        </div>
+
+        <div v-else-if="clothingItems.length === 0" class="empty-state">
+          <div class="empty-mark"></div>
+          <p class="empty-title">Nothing here yet</p>
+          <p class="empty-hint">Add your first piece to start building your closet.</p>
+          <button class="btn-add btn-add-empty" @click="openAddForm">
+            <span class="btn-add-icon">+</span>
+            Add item
+          </button>
+        </div>
+
+        <div v-else class="clothing-grid">
+          <div
+            v-for="item in clothingItems"
+            :key="item.id"
+            class="clothing-card"
+          >
+            <div class="card-image">
+              <span class="tag-hole"></span>
+              <img
+                v-if="item.image_url"
+                :src="item.image_url.startsWith('http') ? item.image_url : `http://localhost:5002${item.image_url}`"
+                :alt="item.name"
+                @error="handleImageError"
+              />
+              <div v-else class="placeholder-image">
+                {{ item.category.charAt(0) }}
+              </div>
+              <div class="placeholder-image placeholder-fallback">
+                {{ item.category.charAt(0) }}
+              </div>
+              <span class="category-badge">{{ item.category }}</span>
+            </div>
+            <div class="card-content">
+              <h3 class="item-name">{{ item.name }}</h3>
+              <div class="item-details">
+                <span class="detail">{{ item.size }}</span>
+                <span class="detail">{{ item.color }}</span>
+              </div>
+              <div class="item-price-stock">
+                <span class="price">฿{{ parseFloat(item.price || 0).toFixed(2) }}</span>
+                <span class="stock" :class="getStockClass(item.stock)">
+                  <span class="stock-dot"></span>
+                  {{ item.stock }} in stock
+                </span>
+              </div>
+              <div class="card-actions">
+                <button @click="editItem(item)" class="btn-icon btn-edit">
+                  Edit
+                </button>
+                <button @click="deleteItem(item.id)" class="btn-icon btn-delete">
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Add / Edit modal -->
+    <transition name="fade">
+      <div v-if="showForm" class="modal-overlay" @click.self="closeForm">
+        <div class="modal-panel">
+          <div class="modal-header">
+            <h2 class="section-title">{{ isEditing ? 'Edit item' : 'Add new item' }}</h2>
+            <button class="modal-close" @click="closeForm" aria-label="Close">×</button>
+          </div>
+
           <form @submit.prevent="handleSubmit" class="clothing-form">
             <div class="form-group">
               <label>Name</label>
-              <input 
-                v-model="formData.name" 
-                type="text" 
-                required 
-                placeholder="Enter clothing name"
+              <input
+                v-model="formData.name"
+                type="text"
+                required
+                placeholder="e.g. Oversized denim jacket"
                 class="form-input"
               />
             </div>
@@ -50,10 +146,10 @@
               </div>
               <div class="form-group">
                 <label>Color</label>
-                <input 
-                  v-model="formData.color" 
-                  type="text" 
-                  required 
+                <input
+                  v-model="formData.color"
+                  type="text"
+                  required
                   placeholder="Color"
                   class="form-input"
                 />
@@ -62,11 +158,11 @@
             <div class="form-row">
               <div class="form-group">
                 <label>Price (฿)</label>
-                <input 
-                  v-model.number="formData.price" 
-                  type="number" 
-                  required 
-                  min="0" 
+                <input
+                  v-model.number="formData.price"
+                  type="number"
+                  required
+                  min="0"
                   step="0.01"
                   placeholder="0.00"
                   class="form-input"
@@ -74,10 +170,10 @@
               </div>
               <div class="form-group">
                 <label>Stock</label>
-                <input 
-                  v-model.number="formData.stock" 
-                  type="number" 
-                  required 
+                <input
+                  v-model.number="formData.stock"
+                  type="number"
+                  required
                   min="0"
                   placeholder="0"
                   class="form-input"
@@ -86,94 +182,38 @@
             </div>
             <div class="form-group">
               <label>Image (optional)</label>
-              <input 
-                type="file" 
-                accept="image/*"
-                @change="handleFileChange"
-                class="form-input"
-              />
+              <label class="file-drop">
+                <input
+                  type="file"
+                  accept="image/*"
+                  @change="handleFileChange"
+                  class="file-input"
+                />
+                <span v-if="!imagePreview">Choose a photo</span>
+                <span v-else>Change photo</span>
+              </label>
               <div v-if="imagePreview" class="image-preview">
                 <img :src="imagePreview" alt="Preview" />
-                <button @click="removeImage" class="remove-image-btn">×</button>
+                <button type="button" @click="removeImage" class="remove-image-btn">×</button>
               </div>
             </div>
             <div class="form-actions">
               <button type="submit" class="btn btn-primary">
-                {{ isEditing ? 'Update' : 'Add' }} Item
+                {{ isEditing ? 'Save changes' : 'Add item' }}
               </button>
-              <button 
-                v-if="isEditing" 
-                type="button" 
-                @click="resetForm" 
-                class="btn btn-secondary"
-              >
+              <button type="button" @click="closeForm" class="btn btn-secondary">
                 Cancel
               </button>
             </div>
           </form>
         </div>
-
-        <!-- Clothing List -->
-        <div class="list-section">
-          <h2 class="section-title">Your Wardrobe</h2>
-          <div v-if="loading" class="loading">
-            <div class="spinner"></div>
-            <p>Loading your wardrobe...</p>
-          </div>
-          <div v-else-if="clothingItems.length === 0" class="empty-state">
-            <p class="empty-icon">👚</p>
-            <p>Your wardrobe is empty</p>
-            <p class="empty-hint">Add your first clothing item above!</p>
-          </div>
-          <div v-else class="clothing-grid">
-            <div 
-              v-for="item in clothingItems" 
-              :key="item.id" 
-              class="clothing-card"
-            >
-              <div class="card-image">
-                <img 
-                  v-if="item.image_url" 
-                  :src="item.image_url.startsWith('http') ? item.image_url : `http://localhost:5000${item.image_url}`" 
-                  :alt="item.name"
-                  @error="handleImageError"
-                />
-                <div v-else class="placeholder-image">
-                  {{ item.category.charAt(0) }}
-                </div>
-                <span class="category-badge">{{ item.category }}</span>
-              </div>
-              <div class="card-content">
-                <h3 class="item-name">{{ item.name }}</h3>
-                <div class="item-details">
-                  <span class="detail">{{ item.size }}</span>
-                  <span class="detail">{{ item.color }}</span>
-                </div>
-                <div class="item-price-stock">
-                  <span class="price">฿{{ parseFloat(item.price || 0).toFixed(2) }}</span>
-                  <span class="stock" :class="getStockClass(item.stock)">
-                    {{ item.stock }} in stock
-                  </span>
-                </div>
-                <div class="card-actions">
-                  <button @click="editItem(item)" class="btn-icon btn-edit">
-                    Edit
-                  </button>
-                  <button @click="deleteItem(item.id)" class="btn-icon btn-delete">
-                    Delete
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
-    </div>
+    </transition>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import axios from 'axios'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5002/api'
@@ -184,6 +224,7 @@ const isEditing = ref(false)
 const editingId = ref(null)
 const imageFile = ref(null)
 const imagePreview = ref(null)
+const showForm = ref(false)
 
 const formData = ref({
   name: '',
@@ -194,6 +235,18 @@ const formData = ref({
   stock: ''
 })
 
+const totalValue = computed(() =>
+  clothingItems.value.reduce((sum, item) => sum + (parseFloat(item.price) || 0) * (parseInt(item.stock) || 0), 0)
+)
+
+const lowStockCount = computed(() =>
+  clothingItems.value.filter((item) => item.stock > 0 && item.stock < 5).length
+)
+
+const formatNumber = (num) => {
+  return num.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
+}
+
 const fetchClothing = async () => {
   try {
     loading.value = true
@@ -201,7 +254,7 @@ const fetchClothing = async () => {
     clothingItems.value = response.data
   } catch (error) {
     console.error('Error fetching clothing:', error)
-    alert('Failed to load clothing items')
+    alert('Could not load your wardrobe. Please try again.')
   } finally {
     loading.value = false
   }
@@ -216,36 +269,34 @@ const handleSubmit = async () => {
     formDataToSend.append('color', formData.value.color)
     formDataToSend.append('price', formData.value.price)
     formDataToSend.append('stock', formData.value.stock)
-    
+
     if (imageFile.value) {
       formDataToSend.append('image', imageFile.value)
     }
-    
+
     if (isEditing.value) {
-      // Keep existing image if no new image uploaded
       if (!imageFile.value) {
         formDataToSend.append('image_url', formData.value.image_url || '')
       }
       await axios.put(`${API_URL}/clothing/${editingId.value}`, formDataToSend, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
+        headers: { 'Content-Type': 'multipart/form-data' }
       })
-      alert('Item updated successfully! 🎉')
     } else {
       await axios.post(`${API_URL}/clothing`, formDataToSend, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
+        headers: { 'Content-Type': 'multipart/form-data' }
       })
-      alert('Item added successfully! 🎉')
     }
-    resetForm()
+    closeForm()
     fetchClothing()
   } catch (error) {
     console.error('Error saving clothing:', error)
-    alert('Failed to save item')
+    alert('Could not save this item. Please check the details and try again.')
   }
+}
+
+const openAddForm = () => {
+  resetForm()
+  showForm.value = true
 }
 
 const editItem = (item) => {
@@ -261,21 +312,25 @@ const editItem = (item) => {
     image_url: item.image_url || ''
   }
   imageFile.value = null
-  imagePreview.value = item.image_url ? `http://localhost:5000${item.image_url}` : null
-  window.scrollTo({ top: 0, behavior: 'smooth' })
+  imagePreview.value = item.image_url ? `http://localhost:5002${item.image_url}` : null
+  showForm.value = true
 }
 
 const deleteItem = async (id) => {
-  if (confirm('Are you sure you want to delete this item?')) {
+  if (confirm('Delete this item from your wardrobe?')) {
     try {
       await axios.delete(`${API_URL}/clothing/${id}`)
-      alert('Item deleted successfully! 🗑️')
       fetchClothing()
     } catch (error) {
       console.error('Error deleting clothing:', error)
-      alert('Failed to delete item')
+      alert('Could not delete this item. Please try again.')
     }
   }
+}
+
+const closeForm = () => {
+  showForm.value = false
+  resetForm()
 }
 
 const resetForm = () => {
@@ -323,74 +378,479 @@ onMounted(() => {
 </script>
 
 <style scoped>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap');
+
 .app {
+  --bg: #ffffff;
+  --surface: #faf9f7;
+  --ink: #16161a;
+  --ink-soft: #7a7873;
+  --line: #ebe9e4;
+  --accent: #ff4d6d;
+  --accent-soft: #ffe4e9;
+  --violet: #6d5aff;
+  --mint: #12b76a;
+  --mint-soft: #e3f9ee;
+  --amber: #d99a1b;
+  --amber-soft: #fbf0d9;
+  --danger: #e0454f;
+  --danger-soft: #fce9ea;
+
   min-height: 100vh;
-  padding: 2rem 1rem;
-  background: radial-gradient(circle at top, #242424 0%, #080808 65%, #000000 100%);
+  padding: 3rem 1.5rem 5rem;
+  background: var(--bg);
+  font-family: 'Inter', sans-serif;
+  color: var(--ink);
 }
 
 .container {
-  max-width: 1400px;
+  max-width: 1180px;
   margin: 0 auto;
 }
 
+/* Header */
 .header {
-  text-align: center;
-  margin-bottom: 3rem;
-  animation: fadeInDown 0.8s ease;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.header-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.eyebrow {
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
 }
 
 .title {
-  font-size: 3rem;
-  font-weight: 800;
-  color: #f7f2e8;
-  text-shadow: 0 0 22px rgba(212, 175, 55, 0.16);
-  margin-bottom: 0.5rem;
-}
-
-.subtitle {
-  font-size: 1.2rem;
-  color: rgba(247, 242, 232, 0.76);
-}
-
-.content {
-  display: grid;
-  grid-template-columns: 360px 1fr;
-  gap: 2rem;
-  align-items: start;
-}
-
-@media (max-width: 1024px) {
-  .content {
-    grid-template-columns: 1fr;
-  }
-}
-
-.form-section {
-  background: linear-gradient(145deg, #151515 0%, #0d0d0d 100%);
-  border: 1px solid #2e2e2e;
-  border-radius: 22px;
-  padding: 2rem;
-  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.55);
-  animation: slideInLeft 0.6s ease;
-  position: sticky;
-  top: 2rem;
-}
-
-.section-title {
-  font-size: 1.5rem;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: clamp(2.5rem, 5vw, 3.75rem);
   font-weight: 700;
-  color: #f7f2e8;
-  margin-bottom: 1.5rem;
-  display: flex;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  line-height: 1;
+}
+
+.btn-add {
+  display: inline-flex;
   align-items: center;
   gap: 0.5rem;
+  padding: 0.85rem 1.5rem;
+  border: none;
+  border-radius: 999px;
+  background: var(--ink);
+  color: #fff;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s ease, background 0.2s ease;
+  white-space: nowrap;
 }
 
+.btn-add:hover {
+  background: var(--accent);
+  transform: translateY(-2px);
+}
+
+.btn-add-icon {
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.btn-add-empty {
+  margin-top: 0.5rem;
+}
+
+/* Stats strip */
+.stats-strip {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  padding: 1.5rem 2rem;
+  border-radius: 20px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  margin-bottom: 2.5rem;
+  flex-wrap: wrap;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.stat-value {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.stat-value.stat-warning {
+  color: var(--amber);
+}
+
+.stat-label {
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+  font-weight: 500;
+}
+
+.stat-divider {
+  width: 1px;
+  align-self: stretch;
+  background: var(--line);
+}
+
+/* Section title (used in modal) */
+.section-title {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+/* Loading */
+.loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 5rem 2rem;
+  color: var(--ink-soft);
+  gap: 1rem;
+}
+
+.spinner {
+  width: 42px;
+  height: 42px;
+  border: 3px solid var(--line);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+/* Empty state */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 5rem 2rem;
+  border-radius: 24px;
+  background: var(--surface);
+  border: 1px dashed var(--line);
+}
+
+.empty-mark {
+  width: 56px;
+  height: 56px;
+  border-radius: 999px;
+  border: 2px solid var(--accent);
+  margin-bottom: 1.25rem;
+  position: relative;
+}
+
+.empty-mark::before,
+.empty-mark::after {
+  content: '';
+  position: absolute;
+  background: var(--accent);
+}
+
+.empty-mark::before {
+  width: 22px;
+  height: 2px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.empty-mark::after {
+  width: 2px;
+  height: 22px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.empty-title {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--ink);
+  margin-bottom: 0.4rem;
+}
+
+.empty-hint {
+  font-size: 0.95rem;
+  color: var(--ink-soft);
+  margin-bottom: 1.5rem;
+}
+
+/* Grid + cards */
+.clothing-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1.5rem;
+}
+
+.clothing-card {
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  overflow: hidden;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.clothing-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 20px 40px rgba(22, 22, 26, 0.08);
+}
+
+.card-image {
+  position: relative;
+  height: 210px;
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.card-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.tag-hole {
+  position: absolute;
+  top: 0.9rem;
+  left: 0.9rem;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 1.5px solid var(--line);
+  z-index: 2;
+}
+
+.placeholder-image {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 3.5rem;
+  font-weight: 700;
+  color: var(--line);
+}
+
+.placeholder-fallback {
+  display: none;
+  position: absolute;
+  inset: 0;
+}
+
+.category-badge {
+  position: absolute;
+  top: 0.9rem;
+  right: 0.9rem;
+  background: #ffffff;
+  color: var(--ink);
+  padding: 0.4rem 0.85rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border: 1px solid var(--line);
+}
+
+.card-content {
+  padding: 1.3rem 1.4rem 1.5rem;
+}
+
+.item-name {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--ink);
+  margin-bottom: 0.6rem;
+}
+
+.item-details {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.9rem;
+}
+
+.detail {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--ink-soft);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  padding: 0.25rem 0.7rem;
+  border-radius: 999px;
+}
+
+.item-price-stock {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.1rem;
+}
+
+.price {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.stock {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.3rem 0.7rem;
+  border-radius: 999px;
+}
+
+.stock-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.in-stock {
+  background: var(--mint-soft);
+  color: var(--mint);
+}
+.in-stock .stock-dot { background: var(--mint); }
+
+.low-stock {
+  background: var(--amber-soft);
+  color: var(--amber);
+}
+.low-stock .stock-dot { background: var(--amber); }
+
+.out-of-stock {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+.out-of-stock .stock-dot { background: var(--danger); }
+
+.card-actions {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.btn-icon {
+  flex: 1;
+  padding: 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: #fff;
+  color: var(--ink);
+}
+
+.btn-edit:hover {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: #fff;
+}
+
+.btn-delete {
+  color: var(--danger);
+  border-color: var(--danger-soft);
+}
+
+.btn-delete:hover {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #fff;
+}
+
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(22, 22, 26, 0.45);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  z-index: 50;
+}
+
+.modal-panel {
+  width: 100%;
+  max-width: 480px;
+  max-height: 90vh;
+  overflow-y: auto;
+  background: #ffffff;
+  border-radius: 24px;
+  padding: 2rem;
+  box-shadow: 0 30px 60px rgba(22, 22, 26, 0.25);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+}
+
+.modal-close {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: #fff;
+  font-size: 1.3rem;
+  line-height: 1;
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.modal-close:hover {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: #fff;
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+/* Form */
 .clothing-form {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 1.1rem;
 }
 
 .form-group {
@@ -407,354 +867,149 @@ onMounted(() => {
 
 .form-group label {
   font-weight: 600;
-  color: #e8e2d4;
-  font-size: 0.9rem;
+  color: var(--ink);
+  font-size: 0.85rem;
 }
 
 .form-input {
   padding: 0.75rem 1rem;
-  border: 1px solid #3b3b3b;
-  border-radius: 10px;
-  font-size: 1rem;
-  transition: all 0.3s ease;
-  background: #171717;
-  color: #f7f2e8;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  font-size: 0.95rem;
+  font-family: 'Inter', sans-serif;
+  transition: all 0.2s ease;
+  background: var(--surface);
+  color: var(--ink);
 }
 
 .form-input::placeholder {
-  color: #8c8a84;
+  color: #b3b0a8;
 }
 
 .form-input:focus {
   outline: none;
-  border-color: #d8b24a;
-  box-shadow: 0 0 0 3px rgba(216, 178, 74, 0.18);
+  border-color: var(--accent);
+  background: #fff;
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.file-drop {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.9rem 1rem;
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.file-drop:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.file-input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
 }
 
 .form-actions {
   display: flex;
-  gap: 1rem;
-  margin-top: 0.5rem;
+  gap: 0.9rem;
+  margin-top: 0.4rem;
 }
 
 .btn {
-  padding: 0.75rem 1.5rem;
+  padding: 0.8rem 1.5rem;
   border: none;
-  border-radius: 10px;
-  font-size: 1rem;
+  border-radius: 999px;
+  font-size: 0.95rem;
+  font-family: 'Space Grotesk', sans-serif;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
   flex: 1;
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #f3d27a 0%, #cfa53d 100%);
-  color: #121212;
+  background: var(--ink);
+  color: #fff;
 }
 
 .btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(207, 165, 61, 0.28);
+  background: var(--accent);
 }
 
 .btn-secondary {
-  background: #242424;
-  color: #f5efe3;
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
 }
 
 .btn-secondary:hover {
-  background: #2f2f2f;
-  color: #ffffff;
+  background: #f0efec;
 }
 
 .image-preview {
   position: relative;
-  margin-top: 0.5rem;
-  border-radius: 10px;
+  margin-top: 0.25rem;
+  border-radius: 12px;
   overflow: hidden;
-  border: 1px solid #3b3b3b;
+  border: 1px solid var(--line);
 }
 
 .image-preview img {
   width: 100%;
-  height: 150px;
+  height: 140px;
   object-fit: cover;
 }
 
 .remove-image-btn {
   position: absolute;
-  top: 5px;
-  right: 5px;
-  background: rgba(255, 107, 107, 0.9);
-  color: white;
+  top: 6px;
+  right: 6px;
+  background: rgba(22, 22, 26, 0.75);
+  color: #fff;
   border: none;
   border-radius: 50%;
-  width: 30px;
-  height: 30px;
-  font-size: 1.2rem;
+  width: 28px;
+  height: 28px;
+  font-size: 1.1rem;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
 }
 
 .remove-image-btn:hover {
-  background: rgba(255, 107, 107, 1);
-  transform: scale(1.1);
-}
-
-.list-section {
-  animation: slideInRight 0.6s ease;
-}
-
-.loading {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 4rem;
-  color: #f7f2e8;
-}
-
-.spinner {
-  width: 50px;
-  height: 50px;
-  border: 4px solid rgba(247, 242, 232, 0.16);
-  border-top-color: #f3d27a;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin-bottom: 1rem;
-}
-
-.empty-state {
-  background: linear-gradient(145deg, #151515 0%, #0d0d0d 100%);
-  border: 1px solid #2e2e2e;
-  border-radius: 22px;
-  padding: 4rem 2rem;
-  text-align: center;
-  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.55);
-}
-
-.empty-icon {
-  font-size: 4rem;
-  margin-bottom: 1rem;
-}
-
-.empty-state p {
-  color: #d5d0c4;
-  font-size: 1.1rem;
-}
-
-.empty-hint {
-  font-size: 0.9rem;
-  color: #9c968b;
-  margin-top: 0.5rem;
-}
-
-.clothing-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 1.5rem;
-}
-
-.clothing-card {
-  background: linear-gradient(145deg, #181818 0%, #101010 100%);
-  border: 1px solid #2e2e2e;
-  border-radius: 20px;
-  overflow: hidden;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.42);
-  transition: all 0.3s ease;
-  animation: fadeInUp 0.5s ease;
-}
-
-.clothing-card:hover {
-  transform: translateY(-8px);
-  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.55);
-}
-
-.card-image {
-  position: relative;
-  height: 200px;
-  background: linear-gradient(135deg, #252525 0%, #0d0d0d 100%);
-  overflow: hidden;
-}
-
-.card-image img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.placeholder-image {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 4rem;
-  font-weight: 700;
-  color: rgba(243, 210, 122, 0.2);
-}
-
-.category-badge {
-  position: absolute;
-  top: 1rem;
-  right: 1rem;
-  background: rgba(243, 210, 122, 0.18);
-  color: #fce9ad;
-  padding: 0.5rem 1rem;
-  border-radius: 20px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  backdrop-filter: blur(10px);
-}
-
-.card-content {
-  padding: 1.5rem;
-}
-
-.item-name {
-  font-size: 1.3rem;
-  font-weight: 700;
-  color: #f7f2e8;
-  margin-bottom: 0.75rem;
-}
-
-.item-details {
-  display: flex;
-  gap: 1rem;
-  margin-bottom: 0.75rem;
-}
-
-.detail {
-  font-size: 0.9rem;
-  color: #d4cdbf;
-  background: #242424;
-  border: 1px solid #3a3a3a;
-  padding: 0.25rem 0.75rem;
-  border-radius: 15px;
-}
-
-.item-price-stock {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-}
-
-.price {
-  font-size: 1.5rem;
-  font-weight: 800;
-  color: #f3d27a;
-}
-
-.stock {
-  font-size: 0.85rem;
-  font-weight: 600;
-  padding: 0.25rem 0.75rem;
-  border-radius: 15px;
-}
-
-.in-stock {
-  background: #173423;
-  color: #8fe09a;
-}
-
-.low-stock {
-  background: #3b2c12;
-  color: #f0c96a;
-}
-
-.out-of-stock {
-  background: #3f1717;
-  color: #f1a1a1;
-}
-
-.card-actions {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.btn-icon {
-  flex: 1;
-  padding: 0.6rem;
-  border: none;
-  border-radius: 8px;
-  font-size: 0.9rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.btn-edit {
-  background: #2b2b2b;
-  color: #f7f2e8;
-}
-
-.btn-edit:hover {
-  background: #343434;
-  transform: translateY(-2px);
-}
-
-.btn-delete {
-  background: #7b2323;
-  color: white;
-}
-
-.btn-delete:hover {
-  background: #951f1f;
-  transform: translateY(-2px);
-}
-
-@keyframes fadeInDown {
-  from {
-    opacity: 0;
-    transform: translateY(-30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes slideInLeft {
-  from {
-    opacity: 0;
-    transform: translateX(-30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-@keyframes slideInRight {
-  from {
-    opacity: 0;
-    transform: translateX(30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
+  background: var(--danger);
 }
 
 @keyframes spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 640px) {
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .stats-strip {
+    gap: 1.25rem;
+    padding: 1.25rem 1.5rem;
   }
 }
 </style>
