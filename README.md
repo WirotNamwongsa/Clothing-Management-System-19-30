@@ -1,25 +1,25 @@
-# 👕 Clothing Management System
+# Clothing Management System
 
 A modern, stylish clothing management system built with Vue.js, Express, PostgreSQL, and Docker. Features a teen-friendly UI with smooth animations and full CRUD functionality.
 
-## 🚀 Tech Stack
+## Tech Stack
 
 - **Frontend**: Vue.js 3 + Vite
 - **Backend**: Express.js
 - **Database**: PostgreSQL
 - **Containerization**: Docker & Docker Compose
 
-## ✨ Features
+## Features
 
-- ✅ Full CRUD operations (Create, Read, Update, Delete)
-- 🎨 Modern, teen-friendly UI design
-- 🌈 Beautiful gradient backgrounds
-- ✨ Smooth animations and transitions
-- 📱 Responsive design
-- 🖼️ Image support for clothing items
-- 📊 Stock management with status indicators
+- Full CRUD operations (Create, Read, Update, Delete)
+- Modern, teen-friendly UI design
+- Beautiful gradient backgrounds
+- Smooth animations and transitions
+- Responsive design
+- Image support for clothing items
+- Stock management with status indicators
 
-## 🐳 Running with Docker Desktop
+## Running with Docker Desktop
 
 ### Prerequisites
 - Docker Desktop installed and running
@@ -53,7 +53,7 @@ To remove volumes (this will delete all data):
 docker-compose down -v
 ```
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 Clothing-Management-System-19-30/
@@ -75,7 +75,7 @@ Clothing-Management-System-19-30/
 └── docker-compose.yml     # Docker Compose configuration
 ```
 
-## 🔧 API Endpoints
+## API Endpoints
 
 - `GET /api/clothing` - Get all clothing items
 - `GET /api/clothing/:id` - Get single clothing item
@@ -84,7 +84,7 @@ Clothing-Management-System-19-30/
 - `DELETE /api/clothing/:id` - Delete clothing item
 - `GET /api/health` - Health check
 
-## 🎨 Customization
+## Customization
 
 ### Environment Variables
 
@@ -103,7 +103,7 @@ PORT=5000
 VITE_API_URL=http://localhost:5000/api
 ```
 
-## 📝 Database Schema
+## Database Schema
 
 ```sql
 CREATE TABLE clothing (
@@ -120,7 +120,7 @@ CREATE TABLE clothing (
 );
 ```
 
-## 🛠️ Development
+## Development
 
 ### Running without Docker
 
@@ -140,6 +140,6 @@ cp .env.example .env
 npm run dev
 ```
 
-## 📄 License
+## License
 
 This project is open source and available for educational purposes.
