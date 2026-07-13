@@ -209,6 +209,22 @@
         </div>
       </div>
     </transition>
+
+    <!-- Delete Confirmation Modal -->
+    <transition name="fade">
+      <div v-if="showDeleteModal" class="modal-overlay" @click.self="cancelDelete">
+        <div class="modal-panel delete-modal">
+          <div class="modal-header">
+            <h2 class="section-title">Delete item</h2>
+          </div>
+          <p class="delete-message">Delete this item from your wardrobe?</p>
+          <div class="modal-actions">
+            <button @click="confirmDelete" class="btn btn-danger">Delete</button>
+            <button @click="cancelDelete" class="btn btn-secondary">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </transition>
   </div>
 </template>
 
@@ -225,6 +241,8 @@ const editingId = ref(null)
 const imageFile = ref(null)
 const imagePreview = ref(null)
 const showForm = ref(false)
+const showDeleteModal = ref(false)
+const deleteItemId = ref(null)
 
 const formData = ref({
   name: '',
@@ -316,16 +334,26 @@ const editItem = (item) => {
   showForm.value = true
 }
 
-const deleteItem = async (id) => {
-  if (confirm('Delete this item from your wardrobe?')) {
-    try {
-      await axios.delete(`${API_URL}/clothing/${id}`)
-      fetchClothing()
-    } catch (error) {
-      console.error('Error deleting clothing:', error)
-      alert('Could not delete this item. Please try again.')
-    }
+const deleteItem = (id) => {
+  deleteItemId.value = id
+  showDeleteModal.value = true
+}
+
+const confirmDelete = async () => {
+  try {
+    await axios.delete(`${API_URL}/clothing/${deleteItemId.value}`)
+    showDeleteModal.value = false
+    deleteItemId.value = null
+    fetchClothing()
+  } catch (error) {
+    console.error('Error deleting clothing:', error)
+    alert('Could not delete this item. Please try again.')
   }
+}
+
+const cancelDelete = () => {
+  showDeleteModal.value = false
+  deleteItemId.value = null
 }
 
 const closeForm = () => {
@@ -956,6 +984,33 @@ onMounted(() => {
 
 .btn-secondary:hover {
   background: #f0efec;
+}
+
+.btn-danger {
+  background: var(--danger);
+  color: #fff;
+}
+
+.btn-danger:hover {
+  background: #c0373d;
+}
+
+.delete-modal {
+  max-width: 380px;
+  text-align: center;
+  padding: 2.5rem 2rem;
+}
+
+.delete-message {
+  font-size: 1.05rem;
+  color: var(--ink);
+  margin-bottom: 2rem;
+  line-height: 1.5;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 0.9rem;
 }
 
 .image-preview {
