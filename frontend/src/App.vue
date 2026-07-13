@@ -2,8 +2,8 @@
   <div class="app">
     <div class="container">
       <header class="header">
-        <h1 class="title">👕 Clothing Management</h1>
-        <p class="subtitle">Manage your wardrobe with style ✨</p>
+        <h1 class="title">Clothing Management</h1>
+        <p class="subtitle">Manage your wardrobe with style</p>
       </header>
 
       <div class="content">
@@ -115,7 +115,7 @@
 
         <!-- Clothing List -->
         <div class="list-section">
-          <h2 class="section-title">Your Wardrobe 🛍️</h2>
+          <h2 class="section-title">Your Wardrobe</h2>
           <div v-if="loading" class="loading">
             <div class="spinner"></div>
             <p>Loading your wardrobe...</p>
@@ -146,8 +146,8 @@
               <div class="card-content">
                 <h3 class="item-name">{{ item.name }}</h3>
                 <div class="item-details">
-                  <span class="detail">📏 {{ item.size }}</span>
-                  <span class="detail">🎨 {{ item.color }}</span>
+                  <span class="detail">{{ item.size }}</span>
+                  <span class="detail">{{ item.color }}</span>
                 </div>
                 <div class="item-price-stock">
                   <span class="price">฿{{ parseFloat(item.price || 0).toFixed(2) }}</span>
@@ -157,10 +157,10 @@
                 </div>
                 <div class="card-actions">
                   <button @click="editItem(item)" class="btn-icon btn-edit">
-                    ✏️ Edit
+                    Edit
                   </button>
                   <button @click="deleteItem(item.id)" class="btn-icon btn-delete">
-                    🗑️ Delete
+                    Delete
                   </button>
                 </div>
               </div>
@@ -176,7 +176,7 @@
 import { ref, onMounted } from 'vue'
 import axios from 'axios'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5002/api'
 
 const clothingItems = ref([])
 const loading = ref(true)
@@ -326,6 +326,7 @@ onMounted(() => {
 .app {
   min-height: 100vh;
   padding: 2rem 1rem;
+  background: radial-gradient(circle at top, #242424 0%, #080808 65%, #000000 100%);
 }
 
 .container {
@@ -342,19 +343,19 @@ onMounted(() => {
 .title {
   font-size: 3rem;
   font-weight: 800;
-  color: white;
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+  color: #f7f2e8;
+  text-shadow: 0 0 22px rgba(212, 175, 55, 0.16);
   margin-bottom: 0.5rem;
 }
 
 .subtitle {
   font-size: 1.2rem;
-  color: rgba(255, 255, 255, 0.9);
+  color: rgba(247, 242, 232, 0.76);
 }
 
 .content {
   display: grid;
-  grid-template-columns: 350px 1fr;
+  grid-template-columns: 360px 1fr;
   gap: 2rem;
   align-items: start;
 }
@@ -366,10 +367,11 @@ onMounted(() => {
 }
 
 .form-section {
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 20px;
+  background: linear-gradient(145deg, #151515 0%, #0d0d0d 100%);
+  border: 1px solid #2e2e2e;
+  border-radius: 22px;
   padding: 2rem;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.55);
   animation: slideInLeft 0.6s ease;
   position: sticky;
   top: 2rem;
@@ -378,7 +380,7 @@ onMounted(() => {
 .section-title {
   font-size: 1.5rem;
   font-weight: 700;
-  color: #667eea;
+  color: #f7f2e8;
   margin-bottom: 1.5rem;
   display: flex;
   align-items: center;
@@ -405,23 +407,28 @@ onMounted(() => {
 
 .form-group label {
   font-weight: 600;
-  color: #333;
+  color: #e8e2d4;
   font-size: 0.9rem;
 }
 
 .form-input {
   padding: 0.75rem 1rem;
-  border: 2px solid #e0e0e0;
+  border: 1px solid #3b3b3b;
   border-radius: 10px;
   font-size: 1rem;
   transition: all 0.3s ease;
-  background: white;
+  background: #171717;
+  color: #f7f2e8;
+}
+
+.form-input::placeholder {
+  color: #8c8a84;
 }
 
 .form-input:focus {
   outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  border-color: #d8b24a;
+  box-shadow: 0 0 0 3px rgba(216, 178, 74, 0.18);
 }
 
 .form-actions {
@@ -442,22 +449,23 @@ onMounted(() => {
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background: linear-gradient(135deg, #f3d27a 0%, #cfa53d 100%);
+  color: #121212;
 }
 
 .btn-primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 8px 24px rgba(207, 165, 61, 0.28);
 }
 
 .btn-secondary {
-  background: #f0f0f0;
-  color: #333;
+  background: #242424;
+  color: #f5efe3;
 }
 
 .btn-secondary:hover {
-  background: #e0e0e0;
+  background: #2f2f2f;
+  color: #ffffff;
 }
 
 .image-preview {
@@ -465,7 +473,7 @@ onMounted(() => {
   margin-top: 0.5rem;
   border-radius: 10px;
   overflow: hidden;
-  border: 2px solid #e0e0e0;
+  border: 1px solid #3b3b3b;
 }
 
 .image-preview img {
@@ -507,25 +515,26 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   padding: 4rem;
-  color: white;
+  color: #f7f2e8;
 }
 
 .spinner {
   width: 50px;
   height: 50px;
-  border: 4px solid rgba(255, 255, 255, 0.3);
-  border-top-color: white;
+  border: 4px solid rgba(247, 242, 232, 0.16);
+  border-top-color: #f3d27a;
   border-radius: 50%;
   animation: spin 1s linear infinite;
   margin-bottom: 1rem;
 }
 
 .empty-state {
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 20px;
+  background: linear-gradient(145deg, #151515 0%, #0d0d0d 100%);
+  border: 1px solid #2e2e2e;
+  border-radius: 22px;
   padding: 4rem 2rem;
   text-align: center;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.55);
 }
 
 .empty-icon {
@@ -534,13 +543,13 @@ onMounted(() => {
 }
 
 .empty-state p {
-  color: #666;
+  color: #d5d0c4;
   font-size: 1.1rem;
 }
 
 .empty-hint {
   font-size: 0.9rem;
-  color: #999;
+  color: #9c968b;
   margin-top: 0.5rem;
 }
 
@@ -551,23 +560,24 @@ onMounted(() => {
 }
 
 .clothing-card {
-  background: rgba(255, 255, 255, 0.95);
+  background: linear-gradient(145deg, #181818 0%, #101010 100%);
+  border: 1px solid #2e2e2e;
   border-radius: 20px;
   overflow: hidden;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.42);
   transition: all 0.3s ease;
   animation: fadeInUp 0.5s ease;
 }
 
 .clothing-card:hover {
-  transform: translateY(-10px);
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+  transform: translateY(-8px);
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.55);
 }
 
 .card-image {
   position: relative;
   height: 200px;
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  background: linear-gradient(135deg, #252525 0%, #0d0d0d 100%);
   overflow: hidden;
 }
 
@@ -585,15 +595,15 @@ onMounted(() => {
   justify-content: center;
   font-size: 4rem;
   font-weight: 700;
-  color: rgba(102, 126, 234, 0.3);
+  color: rgba(243, 210, 122, 0.2);
 }
 
 .category-badge {
   position: absolute;
   top: 1rem;
   right: 1rem;
-  background: rgba(102, 126, 234, 0.9);
-  color: white;
+  background: rgba(243, 210, 122, 0.18);
+  color: #fce9ad;
   padding: 0.5rem 1rem;
   border-radius: 20px;
   font-size: 0.8rem;
@@ -608,7 +618,7 @@ onMounted(() => {
 .item-name {
   font-size: 1.3rem;
   font-weight: 700;
-  color: #333;
+  color: #f7f2e8;
   margin-bottom: 0.75rem;
 }
 
@@ -620,8 +630,9 @@ onMounted(() => {
 
 .detail {
   font-size: 0.9rem;
-  color: #666;
-  background: #f5f5f5;
+  color: #d4cdbf;
+  background: #242424;
+  border: 1px solid #3a3a3a;
   padding: 0.25rem 0.75rem;
   border-radius: 15px;
 }
@@ -636,7 +647,7 @@ onMounted(() => {
 .price {
   font-size: 1.5rem;
   font-weight: 800;
-  color: #667eea;
+  color: #f3d27a;
 }
 
 .stock {
@@ -647,18 +658,18 @@ onMounted(() => {
 }
 
 .in-stock {
-  background: #d4edda;
-  color: #155724;
+  background: #173423;
+  color: #8fe09a;
 }
 
 .low-stock {
-  background: #fff3cd;
-  color: #856404;
+  background: #3b2c12;
+  color: #f0c96a;
 }
 
 .out-of-stock {
-  background: #f8d7da;
-  color: #721c24;
+  background: #3f1717;
+  color: #f1a1a1;
 }
 
 .card-actions {
@@ -678,22 +689,22 @@ onMounted(() => {
 }
 
 .btn-edit {
-  background: #667eea;
-  color: white;
+  background: #2b2b2b;
+  color: #f7f2e8;
 }
 
 .btn-edit:hover {
-  background: #5568d3;
+  background: #343434;
   transform: translateY(-2px);
 }
 
 .btn-delete {
-  background: #ff6b6b;
+  background: #7b2323;
   color: white;
 }
 
 .btn-delete:hover {
-  background: #ee5a5a;
+  background: #951f1f;
   transform: translateY(-2px);
 }
 

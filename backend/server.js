@@ -7,7 +7,7 @@ const fs = require('fs');
 require('dotenv').config();
 
 const app = express();
-const port = process.env.PORT || 5000;
+const port = Number(process.env.PORT || 5002);
 
 // Create uploads directory if it doesn't exist
 const uploadsDir = path.join(__dirname, 'uploads');
@@ -51,11 +51,11 @@ const upload = multer({
 
 // PostgreSQL connection
 const pool = new Pool({
-  host: process.env.DB_HOST,
-  port: process.env.DB_PORT,
-  database: process.env.DB_NAME,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
+  host: process.env.DB_HOST || 'localhost',
+  port: Number(process.env.DB_PORT || 5432),
+  database: process.env.DB_NAME || 'clothing_db',
+  user: process.env.DB_USER || 'postgres',
+  password: String(process.env.DB_PASSWORD || 'postgres'),
 });
 
 // Initialize database table
