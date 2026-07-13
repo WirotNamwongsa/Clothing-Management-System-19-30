@@ -3,7 +3,7 @@
     <div class="container">
       <header class="header">
         <h1 class="title">Clothing Management</h1>
-        <p class="subtitle">Manage your wardrobe with style</p>
+        <p class="subtitle">Manage your wardrobe with styles</p>
       </header>
 
       <div class="content">
