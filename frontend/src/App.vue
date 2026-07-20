@@ -34,21 +34,30 @@
     <div v-else class="app">
       <div class="container">
         <header class="header">
-          <div class="header-text">
-            <span class="eyebrow">Your closet, organized</span>
-            <h1 class="title">Wardrobe</h1>
-            <p class="welcome-text">Welcome, {{ currentUser?.name || currentUser?.email }}</p>
+          <div class="brand">
+            <div class="brand-mark" aria-hidden="true">W</div>
+            <div class="brand-text">
+              <span class="eyebrow">Your closet, organized</span>
+              <h1 class="title">Wardrobe</h1>
+            </div>
           </div>
-          <div class="header-actions">
-            <button class="btn btn-secondary" @click="logout">Logout</button>
-            <button class="btn-add" @click="openAddForm">
-              <span class="btn-add-icon">+</span>
-              Add item
-            </button>
+          <nav class="main-nav" aria-label="Main navigation">
+            <button type="button" :class="{ active: activeNavigation === 'wardrobe' }" @click="navigateTo('wardrobe')">Wardrobe</button>
+            <button type="button" :class="{ active: activeNavigation === 'settings' }" @click="openSettings">Settings</button>
+          </nav>
+          <div class="header-right">
+            <p class="welcome-text">Welcome <b>{{ currentUser?.name || currentUser?.email }}</b></p>
+            <div class="header-actions">
+              <button class="btn btn-secondary" @click="logout">Logout</button>
+              <button class="btn-add" @click="openAddForm">
+                <span class="btn-add-icon">+</span>
+                Add item
+              </button>
+            </div>
           </div>
         </header>
 
-        <div class="stats-strip">
+        <div id="statistics" class="stats-strip">
           <div class="stat">
             <span class="stat-value">{{ clothingItems.length }}</span>
             <span class="stat-label">Items</span>
@@ -90,7 +99,7 @@
           <p class="filter-result-count">Showing {{ filteredClothingItems.length }} of {{ clothingItems.length }} items</p>
         </section>
 
-        <div class="list-section">
+        <div id="wardrobe" class="list-section">
           <div v-if="loading" class="loading">
             <div class="spinner"></div>
             <p>Loading your wardrobe</p>
@@ -240,6 +249,40 @@
           </div>
         </div>
       </transition>
+
+      <transition name="fade">
+        <div v-if="showSettings" class="modal-overlay" @click.self="closeSettings">
+          <div class="modal-panel settings-modal">
+            <div class="modal-header">
+              <h2 class="section-title">Account settings</h2>
+              <button class="modal-close" @click="closeSettings" aria-label="Close">×</button>
+            </div>
+            <div class="settings-profile">
+              <div class="settings-avatar">{{ (currentUser?.name || currentUser?.email || 'U').charAt(0).toUpperCase() }}</div>
+              <div>
+                <p class="settings-name">{{ currentUser?.name || 'Wardrobe member' }}</p>
+                <p class="settings-email">{{ currentUser?.email }}</p>
+              </div>
+            </div>
+            <form class="settings-form" @submit.prevent="saveSettings">
+              <div class="form-group">
+                <label for="settings-name">Display name</label>
+                <input id="settings-name" v-model.trim="settingsForm.name" class="form-input" type="text" placeholder="Your name" />
+              </div>
+              <div class="form-group">
+                <label for="settings-email">Email address</label>
+                <input id="settings-email" v-model.trim="settingsForm.email" class="form-input" type="email" required placeholder="you@example.com" />
+              </div>
+              <p v-if="settingsError" class="settings-message error">{{ settingsError }}</p>
+              <p v-else-if="settingsSuccess" class="settings-message success">{{ settingsSuccess }}</p>
+              <div class="form-actions">
+                <button type="submit" class="btn btn-primary" :disabled="settingsLoading">{{ settingsLoading ? 'Saving...' : 'Save changes' }}</button>
+                <button type="button" class="btn btn-secondary" @click="closeSettings">Cancel</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </transition>
     </div>
   </div>
 </template>
@@ -258,6 +301,7 @@ const imageFile = ref(null)
 const imagePreview = ref(null)
 const showForm = ref(false)
 const showDeleteModal = ref(false)
+const showSettings = ref(false)
 const deleteItemId = ref(null)
 const authMode = ref('login')
 const authLoading = ref(false)
@@ -269,6 +313,10 @@ const searchQuery = ref('')
 const selectedCategory = ref('')
 const selectedSize = ref('')
 const selectedStock = ref('')
+const activeNavigation = ref('wardrobe')
+const settingsLoading = ref(false)
+const settingsError = ref('')
+const settingsSuccess = ref('')
 const isAuthenticated = computed(() => Boolean(token.value))
 
 const formData = ref({
@@ -284,6 +332,11 @@ const authForm = ref({
   name: '',
   email: '',
   password: ''
+})
+
+const settingsForm = ref({
+  name: '',
+  email: ''
 })
 
 const totalValue = computed(() =>
@@ -329,6 +382,45 @@ const clearFilters = () => {
   selectedCategory.value = ''
   selectedSize.value = ''
   selectedStock.value = ''
+}
+
+const navigateTo = (section) => {
+  activeNavigation.value = section
+  document.getElementById(section)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
+const openSettings = () => {
+  activeNavigation.value = 'settings'
+  settingsForm.value = {
+    name: currentUser.value?.name || '',
+    email: currentUser.value?.email || ''
+  }
+  settingsError.value = ''
+  settingsSuccess.value = ''
+  showSettings.value = true
+}
+
+const closeSettings = () => {
+  showSettings.value = false
+  settingsError.value = ''
+  settingsSuccess.value = ''
+}
+
+const saveSettings = async () => {
+  settingsLoading.value = true
+  settingsError.value = ''
+  settingsSuccess.value = ''
+
+  try {
+    const response = await axios.put(`${API_URL}/auth/me`, settingsForm.value, { headers: getAuthHeaders() })
+    currentUser.value = response.data.user
+    localStorage.setItem('user', JSON.stringify(response.data.user))
+    settingsSuccess.value = 'Your account details have been updated.'
+  } catch (error) {
+    settingsError.value = error.response?.data?.error || 'Could not update your account. Please try again.'
+  } finally {
+    settingsLoading.value = false
+  }
 }
 
 const getAuthHeaders = () => {
@@ -595,16 +687,36 @@ onMounted(async () => {
 /* Header */
 .header {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
   gap: 1.5rem;
   margin-bottom: 2rem;
 }
 
-.header-text {
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  flex-shrink: 0;
+}
+
+.brand-mark {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border-radius: 14px;
+  background: var(--ink);
+  color: #fff;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.brand-text {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  gap: 0.2rem;
 }
 
 .eyebrow {
@@ -617,11 +729,60 @@ onMounted(async () => {
 
 .title {
   font-family: 'Space Grotesk', sans-serif;
-  font-size: clamp(2.5rem, 5vw, 3.75rem);
+  font-size: 1.6rem;
   font-weight: 700;
   letter-spacing: -0.02em;
   color: var(--ink);
   line-height: 1;
+}
+
+.main-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.35rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+}
+
+.main-nav button {
+  padding: 0.55rem 0.9rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.main-nav button:hover {
+  color: var(--ink);
+}
+
+.main-nav button.active {
+  background: #fff;
+  color: var(--ink);
+  box-shadow: 0 2px 8px rgba(22, 22, 26, 0.08);
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 1rem;
+}
+
+.welcome-text {
+  max-width: 180px;
+  overflow: hidden;
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .btn-add {
@@ -1244,6 +1405,65 @@ onMounted(async () => {
   padding: 2.5rem 2rem;
 }
 
+.settings-modal {
+  max-width: 420px;
+}
+
+.settings-profile {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 1rem;
+  margin-bottom: 1.25rem;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+}
+
+.settings-avatar {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+}
+
+.settings-name {
+  font-weight: 700;
+}
+
+.settings-email {
+  color: var(--ink-soft);
+  font-size: 0.88rem;
+}
+
+.settings-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.settings-message {
+  padding: 0.7rem 0.8rem;
+  border-radius: 10px;
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.settings-message.error {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.settings-message.success {
+  background: var(--mint-soft);
+  color: var(--mint);
+}
+
 .delete-message {
   font-size: 1.05rem;
   color: var(--ink);
@@ -1303,6 +1523,23 @@ onMounted(async () => {
     flex-direction: column;
     align-items: flex-start;
     gap: 1rem;
+  }
+
+  .main-nav {
+    width: 100%;
+  }
+
+  .main-nav button {
+    flex: 1;
+  }
+
+  .header-right {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .welcome-text {
+    display: none;
   }
 
   .stats-strip {
