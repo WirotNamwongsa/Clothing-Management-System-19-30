@@ -284,7 +284,6 @@
             <form class="settings-form" @submit.prevent="changePassword">
               <div>
                 <h3 class="settings-section-title">Change password</h3>
-                <p class="settings-section-hint">Use at least 8 characters for your new password.</p>
               </div>
               <div class="form-group">
                 <label for="current-password">Current password</label>
@@ -292,7 +291,7 @@
               </div>
               <div class="form-group">
                 <label for="new-password">New password</label>
-                <input id="new-password" v-model="passwordForm.newPassword" class="form-input" type="password" required minlength="8" autocomplete="new-password" />
+                <input id="new-password" v-model="passwordForm.newPassword" class="form-input" type="password" required autocomplete="new-password" />
               </div>
               <p v-if="passwordError" class="settings-message error">{{ passwordError }}</p>
               <p v-else-if="passwordSuccess" class="settings-message success">{{ passwordSuccess }}</p>
@@ -1503,12 +1502,6 @@ onMounted(async () => {
 .settings-section-title {
   font-family: 'Space Grotesk', sans-serif;
   font-size: 1.05rem;
-}
-
-.settings-section-hint {
-  margin-top: 0.25rem;
-  color: var(--ink-soft);
-  font-size: 0.84rem;
 }
 
 .settings-message {
