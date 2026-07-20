@@ -94,6 +94,12 @@
               <option value="low-stock">Running low</option>
               <option value="out-of-stock">Out of stock</option>
             </select>
+            <select v-model="selectedSort" aria-label="Sort clothing">
+              <option value="newest">Newest first</option>
+              <option value="price-high">Price: high to low</option>
+              <option value="price-low">Price: low to high</option>
+              <option value="stock-low">Stock: low to high</option>
+            </select>
             <button v-if="hasActiveFilters" type="button" class="clear-filters" @click="clearFilters">Clear filters</button>
           </div>
           <p class="filter-result-count">Showing {{ filteredClothingItems.length }} of {{ clothingItems.length }} items</p>
@@ -123,7 +129,7 @@
           </div>
 
           <div v-else class="clothing-grid">
-            <div v-for="item in filteredClothingItems" :key="item.id" class="clothing-card">
+            <div v-for="item in sortedClothingItems" :key="item.id" class="clothing-card">
               <div class="card-image">
                 <span class="tag-hole"></span>
                 <img
@@ -352,6 +358,7 @@ const searchQuery = ref('')
 const selectedCategory = ref('')
 const selectedSize = ref('')
 const selectedStock = ref('')
+const selectedSort = ref('newest')
 const activeNavigation = ref('wardrobe')
 const settingsLoading = ref(false)
 const settingsError = ref('')
@@ -421,6 +428,24 @@ const filteredClothingItems = computed(() => {
 const hasActiveFilters = computed(() =>
   Boolean(searchQuery.value || selectedCategory.value || selectedSize.value || selectedStock.value)
 )
+
+const sortedClothingItems = computed(() => {
+  const items = [...filteredClothingItems.value]
+
+  return items.sort((a, b) => {
+    if (selectedSort.value === 'price-high') {
+      return Number(b.price || 0) - Number(a.price || 0)
+    }
+    if (selectedSort.value === 'price-low') {
+      return Number(a.price || 0) - Number(b.price || 0)
+    }
+    if (selectedSort.value === 'stock-low') {
+      return Number(a.stock || 0) - Number(b.stock || 0)
+    }
+
+    return new Date(b.created_at || 0) - new Date(a.created_at || 0)
+  })
+})
 
 const formatNumber = (num) => {
   return num.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
