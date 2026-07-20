@@ -65,6 +65,31 @@
           </div>
         </div>
 
+        <section v-if="!loading && clothingItems.length" class="filter-bar" aria-label="Search and filter clothing">
+          <div class="search-field">
+            <span class="search-icon" aria-hidden="true">⌕</span>
+            <input v-model.trim="searchQuery" type="search" placeholder="Search name, category, or color" aria-label="Search clothing" />
+          </div>
+          <div class="filter-controls">
+            <select v-model="selectedCategory" aria-label="Filter by category">
+              <option value="">All categories</option>
+              <option v-for="category in filterCategories" :key="category" :value="category">{{ category }}</option>
+            </select>
+            <select v-model="selectedSize" aria-label="Filter by size">
+              <option value="">All sizes</option>
+              <option v-for="size in filterSizes" :key="size" :value="size">{{ size }}</option>
+            </select>
+            <select v-model="selectedStock" aria-label="Filter by stock status">
+              <option value="">All stock</option>
+              <option value="in-stock">In stock</option>
+              <option value="low-stock">Running low</option>
+              <option value="out-of-stock">Out of stock</option>
+            </select>
+            <button v-if="hasActiveFilters" type="button" class="clear-filters" @click="clearFilters">Clear filters</button>
+          </div>
+          <p class="filter-result-count">Showing {{ filteredClothingItems.length }} of {{ clothingItems.length }} items</p>
+        </section>
+
         <div class="list-section">
           <div v-if="loading" class="loading">
             <div class="spinner"></div>
@@ -81,8 +106,15 @@
             </button>
           </div>
 
+          <div v-else-if="filteredClothingItems.length === 0" class="empty-state no-results-state">
+            <div class="empty-mark"></div>
+            <p class="empty-title">No matching items</p>
+            <p class="empty-hint">Try changing your search or filters.</p>
+            <button type="button" class="btn btn-secondary" @click="clearFilters">Clear filters</button>
+          </div>
+
           <div v-else class="clothing-grid">
-            <div v-for="item in clothingItems" :key="item.id" class="clothing-card">
+            <div v-for="item in filteredClothingItems" :key="item.id" class="clothing-card">
               <div class="card-image">
                 <span class="tag-hole"></span>
                 <img
@@ -233,6 +265,10 @@ const authError = ref('')
 const authSuccess = ref('')
 const currentUser = ref(null)
 const token = ref('')
+const searchQuery = ref('')
+const selectedCategory = ref('')
+const selectedSize = ref('')
+const selectedStock = ref('')
 const isAuthenticated = computed(() => Boolean(token.value))
 
 const formData = ref({
@@ -258,8 +294,41 @@ const lowStockCount = computed(() =>
   clothingItems.value.filter((item) => item.stock > 0 && item.stock < 5).length
 )
 
+const filterCategories = computed(() =>
+  [...new Set(clothingItems.value.map((item) => item.category).filter(Boolean))].sort()
+)
+
+const filterSizes = computed(() =>
+  [...new Set(clothingItems.value.map((item) => item.size).filter(Boolean))].sort()
+)
+
+const filteredClothingItems = computed(() => {
+  const query = searchQuery.value.toLowerCase()
+
+  return clothingItems.value.filter((item) => {
+    const matchesSearch = !query || [item.name, item.category, item.color]
+      .some((value) => String(value || '').toLowerCase().includes(query))
+    const matchesCategory = !selectedCategory.value || item.category === selectedCategory.value
+    const matchesSize = !selectedSize.value || item.size === selectedSize.value
+    const matchesStock = !selectedStock.value || getStockClass(Number(item.stock)) === selectedStock.value
+
+    return matchesSearch && matchesCategory && matchesSize && matchesStock
+  })
+})
+
+const hasActiveFilters = computed(() =>
+  Boolean(searchQuery.value || selectedCategory.value || selectedSize.value || selectedStock.value)
+)
+
 const formatNumber = (num) => {
   return num.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
+}
+
+const clearFilters = () => {
+  searchQuery.value = ''
+  selectedCategory.value = ''
+  selectedSize.value = ''
+  selectedStock.value = ''
 }
 
 const getAuthHeaders = () => {
@@ -626,6 +695,93 @@ onMounted(async () => {
   width: 1px;
   align-self: stretch;
   background: var(--line);
+}
+
+/* Search and filters */
+.filter-bar {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.25fr) auto;
+  gap: 1rem;
+  align-items: center;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: #fff;
+}
+
+.search-field {
+  position: relative;
+}
+
+.search-icon {
+  position: absolute;
+  top: 50%;
+  left: 0.95rem;
+  color: var(--ink-soft);
+  font-size: 1.35rem;
+  line-height: 1;
+  transform: translateY(-55%);
+  pointer-events: none;
+}
+
+.search-field input,
+.filter-controls select {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+}
+
+.search-field input {
+  padding: 0.65rem 0.9rem 0.65rem 2.5rem;
+}
+
+.filter-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.filter-controls select {
+  width: auto;
+  padding: 0.5rem 0.75rem;
+}
+
+.search-field input:focus,
+.filter-controls select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.clear-filters {
+  min-height: 42px;
+  padding: 0.5rem 0.8rem;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.clear-filters:hover {
+  background: var(--accent-soft);
+}
+
+.filter-result-count {
+  grid-column: 1 / -1;
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+}
+
+.no-results-state {
+  padding: 3.5rem 2rem;
 }
 
 /* Section title (used in modal) */
@@ -1152,6 +1308,18 @@ onMounted(async () => {
   .stats-strip {
     gap: 1.25rem;
     padding: 1.25rem 1.5rem;
+  }
+
+  .filter-bar {
+    grid-template-columns: 1fr;
+  }
+
+  .filter-controls select {
+    flex: 1 1 100%;
+  }
+
+  .clear-filters {
+    width: 100%;
   }
 }
 </style>
