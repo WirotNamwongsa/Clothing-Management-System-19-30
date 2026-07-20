@@ -287,11 +287,33 @@
               </div>
               <div class="form-group">
                 <label for="current-password">Current password</label>
-                <input id="current-password" v-model="passwordForm.currentPassword" class="form-input" type="password" required autocomplete="current-password" />
+                <div class="password-field">
+                  <input id="current-password" v-model="passwordForm.currentPassword" class="form-input" :type="showCurrentPassword ? 'text' : 'password'" required autocomplete="current-password" />
+                  <button type="button" class="password-toggle" :aria-label="showCurrentPassword ? 'Hide current password' : 'Show current password'" :aria-pressed="showCurrentPassword" @click="showCurrentPassword = !showCurrentPassword">
+                    <svg v-if="showCurrentPassword" viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M3 3l18 18M10.6 10.7a2 2 0 002.7 2.7M9.9 5.1A10.8 10.8 0 0112 5c5.1 0 8.7 4.1 9.7 6.3a1.7 1.7 0 010 1.4 12.5 12.5 0 01-3.1 3.8M6.2 6.2A12.5 12.5 0 002.3 11.3a1.7 1.7 0 000 1.4C3.3 14.9 6.9 19 12 19a10.4 10.4 0 004.1-.9" />
+                    </svg>
+                    <svg v-else viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M2.3 12a1.7 1.7 0 010-1.4C3.3 8.4 6.9 4.3 12 4.3s8.7 4.1 9.7 6.3a1.7 1.7 0 010 1.4C20.7 14.2 17.1 18.3 12 18.3S3.3 14.2 2.3 12z" />
+                      <circle cx="12" cy="11.3" r="3.1" />
+                    </svg>
+                  </button>
+                </div>
               </div>
               <div class="form-group">
                 <label for="new-password">New password</label>
-                <input id="new-password" v-model="passwordForm.newPassword" class="form-input" type="password" required autocomplete="new-password" />
+                <div class="password-field">
+                  <input id="new-password" v-model="passwordForm.newPassword" class="form-input" :type="showNewPassword ? 'text' : 'password'" required autocomplete="new-password" />
+                  <button type="button" class="password-toggle" :aria-label="showNewPassword ? 'Hide new password' : 'Show new password'" :aria-pressed="showNewPassword" @click="showNewPassword = !showNewPassword">
+                    <svg v-if="showNewPassword" viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M3 3l18 18M10.6 10.7a2 2 0 002.7 2.7M9.9 5.1A10.8 10.8 0 0112 5c5.1 0 8.7 4.1 9.7 6.3a1.7 1.7 0 010 1.4 12.5 12.5 0 01-3.1 3.8M6.2 6.2A12.5 12.5 0 002.3 11.3a1.7 1.7 0 000 1.4C3.3 14.9 6.9 19 12 19a10.4 10.4 0 004.1-.9" />
+                    </svg>
+                    <svg v-else viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M2.3 12a1.7 1.7 0 010-1.4C3.3 8.4 6.9 4.3 12 4.3s8.7 4.1 9.7 6.3a1.7 1.7 0 010 1.4C20.7 14.2 17.1 18.3 12 18.3S3.3 14.2 2.3 12z" />
+                      <circle cx="12" cy="11.3" r="3.1" />
+                    </svg>
+                  </button>
+                </div>
               </div>
               <p v-if="passwordError" class="settings-message error">{{ passwordError }}</p>
               <p v-else-if="passwordSuccess" class="settings-message success">{{ passwordSuccess }}</p>
@@ -337,6 +359,8 @@ const settingsSuccess = ref('')
 const passwordLoading = ref(false)
 const passwordError = ref('')
 const passwordSuccess = ref('')
+const showCurrentPassword = ref(false)
+const showNewPassword = ref(false)
 const isAuthenticated = computed(() => Boolean(token.value))
 
 const formData = ref({
@@ -425,6 +449,8 @@ const openSettings = () => {
   passwordError.value = ''
   passwordSuccess.value = ''
   passwordForm.value = { currentPassword: '', newPassword: '' }
+  showCurrentPassword.value = false
+  showNewPassword.value = false
   showSettings.value = true
 }
 
@@ -461,6 +487,8 @@ const changePassword = async () => {
   try {
     const response = await axios.put(`${API_URL}/auth/me/password`, passwordForm.value, { headers: getAuthHeaders() })
     passwordForm.value = { currentPassword: '', newPassword: '' }
+    showCurrentPassword.value = false
+    showNewPassword.value = false
     passwordSuccess.value = response.data.message
   } catch (error) {
     passwordError.value = error.response?.data?.error || 'Could not update your password. Please try again.'
@@ -1491,6 +1519,54 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+}
+
+.password-field {
+  position: relative;
+}
+
+.password-field .form-input {
+  padding-right: 3.5rem;
+}
+
+.password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 0.5rem;
+  display: grid;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--ink-soft);
+  cursor: pointer;
+  transform: translateY(-50%);
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.password-toggle svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.password-toggle:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent-soft);
+  color: var(--accent);
+}
+
+.password-toggle:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 .settings-divider {
