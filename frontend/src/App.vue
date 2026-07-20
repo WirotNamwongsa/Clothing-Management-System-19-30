@@ -13,9 +13,11 @@
           <input v-model="authForm.email" type="email" placeholder="Email" required />
           <input v-model="authForm.password" type="password" placeholder="Password" required />
 
-          <button class="btn btn-primary" type="submit" :disabled="authLoading">
-            {{ authLoading ? 'Working...' : authMode === 'login' ? 'Login' : 'Register' }}
-          </button>
+          <div class="auth-actions">
+            <button class="btn btn-primary auth-submit-btn" type="submit" :disabled="authLoading">
+              {{ authLoading ? 'Working...' : authMode === 'login' ? 'Login' : 'Register' }}
+            </button>
+          </div>
         </form>
 
         <p class="auth-toggle">
