@@ -332,8 +332,15 @@ const toggleAuthMode = () => {
 
 const logout = (showMessage = true) => {
   clearSession()
+  // ensure auth form is visible and set to login mode
+  authMode.value = 'login'
+  authError.value = ''
   if (showMessage) {
     authSuccess.value = 'You have been logged out.'
+  }
+  // scroll to top so the auth card is visible
+  if (typeof window !== 'undefined' && window.scrollTo) {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 }
 
