@@ -34,21 +34,30 @@
     <div v-else class="app">
       <div class="container">
         <header class="header">
-          <div class="header-text">
-            <span class="eyebrow">Your closet, organized</span>
-            <h1 class="title">Wardrobe</h1>
-            <p class="welcome-text">Welcome, {{ currentUser?.name || currentUser?.email }}</p>
+          <div class="brand">
+            <div class="brand-mark" aria-hidden="true">W</div>
+            <div class="brand-text">
+              <span class="eyebrow">Your closet, organized</span>
+              <h1 class="title">Wardrobe</h1>
+            </div>
           </div>
-          <div class="header-actions">
-            <button class="btn btn-secondary" @click="logout">Logout</button>
-            <button class="btn-add" @click="openAddForm">
-              <span class="btn-add-icon">+</span>
-              Add item
-            </button>
+          <nav class="main-nav" aria-label="Main navigation">
+            <button type="button" :class="{ active: activeNavigation === 'wardrobe' }" @click="navigateTo('wardrobe')">Wardrobe</button>
+            <button type="button" :class="{ active: activeNavigation === 'settings' }" @click="openSettings">Settings</button>
+          </nav>
+          <div class="header-right">
+            <p class="welcome-text">Welcome <b>{{ currentUser?.name || currentUser?.email }}</b></p>
+            <div class="header-actions">
+              <button class="btn btn-secondary" @click="logout">Logout</button>
+              <button class="btn-add" @click="openAddForm">
+                <span class="btn-add-icon">+</span>
+                Add item
+              </button>
+            </div>
           </div>
         </header>
 
-        <div class="stats-strip">
+        <div id="statistics" class="stats-strip">
           <div class="stat">
             <span class="stat-value">{{ clothingItems.length }}</span>
             <span class="stat-label">Items</span>
@@ -65,7 +74,32 @@
           </div>
         </div>
 
-        <div class="list-section">
+        <section v-if="!loading && clothingItems.length" class="filter-bar" aria-label="Search and filter clothing">
+          <div class="search-field">
+            <span class="search-icon" aria-hidden="true">⌕</span>
+            <input v-model.trim="searchQuery" type="search" placeholder="Search name, category, or color" aria-label="Search clothing" />
+          </div>
+          <div class="filter-controls">
+            <select v-model="selectedCategory" aria-label="Filter by category">
+              <option value="">All categories</option>
+              <option v-for="category in filterCategories" :key="category" :value="category">{{ category }}</option>
+            </select>
+            <select v-model="selectedSize" aria-label="Filter by size">
+              <option value="">All sizes</option>
+              <option v-for="size in filterSizes" :key="size" :value="size">{{ size }}</option>
+            </select>
+            <select v-model="selectedStock" aria-label="Filter by stock status">
+              <option value="">All stock</option>
+              <option value="in-stock">In stock</option>
+              <option value="low-stock">Running low</option>
+              <option value="out-of-stock">Out of stock</option>
+            </select>
+            <button v-if="hasActiveFilters" type="button" class="clear-filters" @click="clearFilters">Clear filters</button>
+          </div>
+          <p class="filter-result-count">Showing {{ filteredClothingItems.length }} of {{ clothingItems.length }} items</p>
+        </section>
+
+        <div id="wardrobe" class="list-section">
           <div v-if="loading" class="loading">
             <div class="spinner"></div>
             <p>Loading your wardrobe</p>
@@ -81,8 +115,15 @@
             </button>
           </div>
 
+          <div v-else-if="filteredClothingItems.length === 0" class="empty-state no-results-state">
+            <div class="empty-mark"></div>
+            <p class="empty-title">No matching items</p>
+            <p class="empty-hint">Try changing your search or filters.</p>
+            <button type="button" class="btn btn-secondary" @click="clearFilters">Clear filters</button>
+          </div>
+
           <div v-else class="clothing-grid">
-            <div v-for="item in clothingItems" :key="item.id" class="clothing-card">
+            <div v-for="item in filteredClothingItems" :key="item.id" class="clothing-card">
               <div class="card-image">
                 <span class="tag-hole"></span>
                 <img
@@ -208,6 +249,40 @@
           </div>
         </div>
       </transition>
+
+      <transition name="fade">
+        <div v-if="showSettings" class="modal-overlay" @click.self="closeSettings">
+          <div class="modal-panel settings-modal">
+            <div class="modal-header">
+              <h2 class="section-title">Account settings</h2>
+              <button class="modal-close" @click="closeSettings" aria-label="Close">×</button>
+            </div>
+            <div class="settings-profile">
+              <div class="settings-avatar">{{ (currentUser?.name || currentUser?.email || 'U').charAt(0).toUpperCase() }}</div>
+              <div>
+                <p class="settings-name">{{ currentUser?.name || 'Wardrobe member' }}</p>
+                <p class="settings-email">{{ currentUser?.email }}</p>
+              </div>
+            </div>
+            <form class="settings-form" @submit.prevent="saveSettings">
+              <div class="form-group">
+                <label for="settings-name">Display name</label>
+                <input id="settings-name" v-model.trim="settingsForm.name" class="form-input" type="text" placeholder="Your name" />
+              </div>
+              <div class="form-group">
+                <label for="settings-email">Email address</label>
+                <input id="settings-email" v-model.trim="settingsForm.email" class="form-input" type="email" required placeholder="you@example.com" />
+              </div>
+              <p v-if="settingsError" class="settings-message error">{{ settingsError }}</p>
+              <p v-else-if="settingsSuccess" class="settings-message success">{{ settingsSuccess }}</p>
+              <div class="form-actions">
+                <button type="submit" class="btn btn-primary" :disabled="settingsLoading">{{ settingsLoading ? 'Saving...' : 'Save changes' }}</button>
+                <button type="button" class="btn btn-secondary" @click="closeSettings">Cancel</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </transition>
     </div>
   </div>
 </template>
@@ -226,6 +301,7 @@ const imageFile = ref(null)
 const imagePreview = ref(null)
 const showForm = ref(false)
 const showDeleteModal = ref(false)
+const showSettings = ref(false)
 const deleteItemId = ref(null)
 const authMode = ref('login')
 const authLoading = ref(false)
@@ -233,6 +309,14 @@ const authError = ref('')
 const authSuccess = ref('')
 const currentUser = ref(null)
 const token = ref('')
+const searchQuery = ref('')
+const selectedCategory = ref('')
+const selectedSize = ref('')
+const selectedStock = ref('')
+const activeNavigation = ref('wardrobe')
+const settingsLoading = ref(false)
+const settingsError = ref('')
+const settingsSuccess = ref('')
 const isAuthenticated = computed(() => Boolean(token.value))
 
 const formData = ref({
@@ -250,6 +334,11 @@ const authForm = ref({
   password: ''
 })
 
+const settingsForm = ref({
+  name: '',
+  email: ''
+})
+
 const totalValue = computed(() =>
   clothingItems.value.reduce((sum, item) => sum + (parseFloat(item.price) || 0) * (parseInt(item.stock) || 0), 0)
 )
@@ -258,8 +347,80 @@ const lowStockCount = computed(() =>
   clothingItems.value.filter((item) => item.stock > 0 && item.stock < 5).length
 )
 
+const filterCategories = computed(() =>
+  [...new Set(clothingItems.value.map((item) => item.category).filter(Boolean))].sort()
+)
+
+const filterSizes = computed(() =>
+  [...new Set(clothingItems.value.map((item) => item.size).filter(Boolean))].sort()
+)
+
+const filteredClothingItems = computed(() => {
+  const query = searchQuery.value.toLowerCase()
+
+  return clothingItems.value.filter((item) => {
+    const matchesSearch = !query || [item.name, item.category, item.color]
+      .some((value) => String(value || '').toLowerCase().includes(query))
+    const matchesCategory = !selectedCategory.value || item.category === selectedCategory.value
+    const matchesSize = !selectedSize.value || item.size === selectedSize.value
+    const matchesStock = !selectedStock.value || getStockClass(Number(item.stock)) === selectedStock.value
+
+    return matchesSearch && matchesCategory && matchesSize && matchesStock
+  })
+})
+
+const hasActiveFilters = computed(() =>
+  Boolean(searchQuery.value || selectedCategory.value || selectedSize.value || selectedStock.value)
+)
+
 const formatNumber = (num) => {
   return num.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
+}
+
+const clearFilters = () => {
+  searchQuery.value = ''
+  selectedCategory.value = ''
+  selectedSize.value = ''
+  selectedStock.value = ''
+}
+
+const navigateTo = (section) => {
+  activeNavigation.value = section
+  document.getElementById(section)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
+const openSettings = () => {
+  activeNavigation.value = 'settings'
+  settingsForm.value = {
+    name: currentUser.value?.name || '',
+    email: currentUser.value?.email || ''
+  }
+  settingsError.value = ''
+  settingsSuccess.value = ''
+  showSettings.value = true
+}
+
+const closeSettings = () => {
+  showSettings.value = false
+  settingsError.value = ''
+  settingsSuccess.value = ''
+}
+
+const saveSettings = async () => {
+  settingsLoading.value = true
+  settingsError.value = ''
+  settingsSuccess.value = ''
+
+  try {
+    const response = await axios.put(`${API_URL}/auth/me`, settingsForm.value, { headers: getAuthHeaders() })
+    currentUser.value = response.data.user
+    localStorage.setItem('user', JSON.stringify(response.data.user))
+    settingsSuccess.value = 'Your account details have been updated.'
+  } catch (error) {
+    settingsError.value = error.response?.data?.error || 'Could not update your account. Please try again.'
+  } finally {
+    settingsLoading.value = false
+  }
 }
 
 const getAuthHeaders = () => {
@@ -332,8 +493,15 @@ const toggleAuthMode = () => {
 
 const logout = (showMessage = true) => {
   clearSession()
+  // ensure auth form is visible and set to login mode
+  authMode.value = 'login'
+  authError.value = ''
   if (showMessage) {
     authSuccess.value = 'You have been logged out.'
+  }
+  // scroll to top so the auth card is visible
+  if (typeof window !== 'undefined' && window.scrollTo) {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 }
 
@@ -519,16 +687,36 @@ onMounted(async () => {
 /* Header */
 .header {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
   gap: 1.5rem;
   margin-bottom: 2rem;
 }
 
-.header-text {
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  flex-shrink: 0;
+}
+
+.brand-mark {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border-radius: 14px;
+  background: var(--ink);
+  color: #fff;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.brand-text {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  gap: 0.2rem;
 }
 
 .eyebrow {
@@ -541,11 +729,60 @@ onMounted(async () => {
 
 .title {
   font-family: 'Space Grotesk', sans-serif;
-  font-size: clamp(2.5rem, 5vw, 3.75rem);
+  font-size: 1.6rem;
   font-weight: 700;
   letter-spacing: -0.02em;
   color: var(--ink);
   line-height: 1;
+}
+
+.main-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.35rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+}
+
+.main-nav button {
+  padding: 0.55rem 0.9rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.main-nav button:hover {
+  color: var(--ink);
+}
+
+.main-nav button.active {
+  background: #fff;
+  color: var(--ink);
+  box-shadow: 0 2px 8px rgba(22, 22, 26, 0.08);
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 1rem;
+}
+
+.welcome-text {
+  max-width: 180px;
+  overflow: hidden;
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .btn-add {
@@ -619,6 +856,93 @@ onMounted(async () => {
   width: 1px;
   align-self: stretch;
   background: var(--line);
+}
+
+/* Search and filters */
+.filter-bar {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.25fr) auto;
+  gap: 1rem;
+  align-items: center;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: #fff;
+}
+
+.search-field {
+  position: relative;
+}
+
+.search-icon {
+  position: absolute;
+  top: 50%;
+  left: 0.95rem;
+  color: var(--ink-soft);
+  font-size: 1.35rem;
+  line-height: 1;
+  transform: translateY(-55%);
+  pointer-events: none;
+}
+
+.search-field input,
+.filter-controls select {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+}
+
+.search-field input {
+  padding: 0.65rem 0.9rem 0.65rem 2.5rem;
+}
+
+.filter-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.filter-controls select {
+  width: auto;
+  padding: 0.5rem 0.75rem;
+}
+
+.search-field input:focus,
+.filter-controls select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.clear-filters {
+  min-height: 42px;
+  padding: 0.5rem 0.8rem;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.clear-filters:hover {
+  background: var(--accent-soft);
+}
+
+.filter-result-count {
+  grid-column: 1 / -1;
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+}
+
+.no-results-state {
+  padding: 3.5rem 2rem;
 }
 
 /* Section title (used in modal) */
@@ -1081,6 +1405,65 @@ onMounted(async () => {
   padding: 2.5rem 2rem;
 }
 
+.settings-modal {
+  max-width: 420px;
+}
+
+.settings-profile {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 1rem;
+  margin-bottom: 1.25rem;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+}
+
+.settings-avatar {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+}
+
+.settings-name {
+  font-weight: 700;
+}
+
+.settings-email {
+  color: var(--ink-soft);
+  font-size: 0.88rem;
+}
+
+.settings-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.settings-message {
+  padding: 0.7rem 0.8rem;
+  border-radius: 10px;
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.settings-message.error {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.settings-message.success {
+  background: var(--mint-soft);
+  color: var(--mint);
+}
+
 .delete-message {
   font-size: 1.05rem;
   color: var(--ink);
@@ -1142,9 +1525,38 @@ onMounted(async () => {
     gap: 1rem;
   }
 
+  .main-nav {
+    width: 100%;
+  }
+
+  .main-nav button {
+    flex: 1;
+  }
+
+  .header-right {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .welcome-text {
+    display: none;
+  }
+
   .stats-strip {
     gap: 1.25rem;
     padding: 1.25rem 1.5rem;
+  }
+
+  .filter-bar {
+    grid-template-columns: 1fr;
+  }
+
+  .filter-controls select {
+    flex: 1 1 100%;
+  }
+
+  .clear-filters {
+    width: 100%;
   }
 }
 </style>

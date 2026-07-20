@@ -197,6 +197,40 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
   }
 });
 
+app.put('/api/auth/me', authenticateToken, async (req, res) => {
+  try {
+    const { name, email } = req.body;
+    const normalizedEmail = String(email || '').trim().toLowerCase();
+
+    if (!normalizedEmail) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    const existingUser = await pool.query(
+      'SELECT id FROM users WHERE email = $1 AND id != $2',
+      [normalizedEmail, req.user.id]
+    );
+
+    if (existingUser.rows.length > 0) {
+      return res.status(409).json({ error: 'Email already registered' });
+    }
+
+    const result = await pool.query(
+      'UPDATE users SET name = $1, email = $2 WHERE id = $3 RETURNING id, name, email',
+      [String(name || '').trim(), normalizedEmail, req.user.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({ user: result.rows[0] });
+  } catch (error) {
+    console.error('Error updating user:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 app.use('/api/clothing', authenticateToken);
 
 // CRUD Routes
