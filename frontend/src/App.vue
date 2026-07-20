@@ -1,230 +1,214 @@
 <template>
-  <div class="app">
-    <div class="container">
-      <!-- Header -->
-      <header class="header">
-        <div class="header-text">
-          <span class="eyebrow">Your closet, organized</span>
-          <h1 class="title">Wardrobe</h1>
-        </div>
-        <button class="btn-add" @click="openAddForm">
-          <span class="btn-add-icon">+</span>
-          Add item
-        </button>
-      </header>
-
-      <!-- Stats strip -->
-      <div class="stats-strip">
-        <div class="stat">
-          <span class="stat-value">{{ clothingItems.length }}</span>
-          <span class="stat-label">Items</span>
-        </div>
-        <div class="stat-divider"></div>
-        <div class="stat">
-          <span class="stat-value">฿{{ formatNumber(totalValue) }}</span>
-          <span class="stat-label">Total value</span>
-        </div>
-        <div class="stat-divider"></div>
-        <div class="stat">
-          <span class="stat-value" :class="{ 'stat-warning': lowStockCount > 0 }">{{ lowStockCount }}</span>
-          <span class="stat-label">Running low</span>
-        </div>
-      </div>
-
-      <!-- List -->
-      <div class="list-section">
-        <div v-if="loading" class="loading">
-          <div class="spinner"></div>
-          <p>Loading your wardrobe</p>
+  <div class="app-shell">
+    <div v-if="!isAuthenticated" class="auth-screen">
+      <div class="auth-card">
+        <div class="auth-header">
+          <span class="eyebrow">Secure wardrobe access</span>
+          <h1>{{ authMode === 'login' ? 'Login to your wardrobe' : 'Create your account' }}</h1>
         </div>
 
-        <div v-else-if="clothingItems.length === 0" class="empty-state">
-          <div class="empty-mark"></div>
-          <p class="empty-title">Nothing here yet</p>
-          <p class="empty-hint">Add your first piece to start building your closet.</p>
-          <button class="btn-add btn-add-empty" @click="openAddForm">
-            <span class="btn-add-icon">+</span>
-            Add item
-          </button>
-        </div>
+        <form @submit.prevent="handleAuthSubmit" class="auth-form">
+          <input v-if="authMode === 'register'" v-model="authForm.name" type="text" placeholder="Full name" required />
+          <input v-model="authForm.email" type="email" placeholder="Email" required />
+          <input v-model="authForm.password" type="password" placeholder="Password" required />
 
-        <div v-else class="clothing-grid">
-          <div
-            v-for="item in clothingItems"
-            :key="item.id"
-            class="clothing-card"
-          >
-            <div class="card-image">
-              <span class="tag-hole"></span>
-              <img
-                v-if="item.image_url"
-                :src="item.image_url.startsWith('http') ? item.image_url : `http://localhost:5002${item.image_url}`"
-                :alt="item.name"
-                @error="handleImageError"
-              />
-              <div v-else class="placeholder-image">
-                {{ item.category.charAt(0) }}
-              </div>
-              <div class="placeholder-image placeholder-fallback">
-                {{ item.category.charAt(0) }}
-              </div>
-              <span class="category-badge">{{ item.category }}</span>
-            </div>
-            <div class="card-content">
-              <h3 class="item-name">{{ item.name }}</h3>
-              <div class="item-details">
-                <span class="detail">{{ item.size }}</span>
-                <span class="detail">{{ item.color }}</span>
-              </div>
-              <div class="item-price-stock">
-                <span class="price">฿{{ parseFloat(item.price || 0).toFixed(2) }}</span>
-                <span class="stock" :class="getStockClass(item.stock)">
-                  <span class="stock-dot"></span>
-                  {{ item.stock }} in stock
-                </span>
-              </div>
-              <div class="card-actions">
-                <button @click="editItem(item)" class="btn-icon btn-edit">
-                  Edit
-                </button>
-                <button @click="deleteItem(item.id)" class="btn-icon btn-delete">
-                  Delete
-                </button>
-              </div>
-            </div>
+          <div class="auth-actions">
+            <button class="btn btn-primary auth-submit-btn" type="submit" :disabled="authLoading">
+              {{ authLoading ? 'Working...' : authMode === 'login' ? 'Login' : 'Register' }}
+            </button>
           </div>
-        </div>
+        </form>
+
+        <p class="auth-toggle">
+          {{ authMode === 'login' ? 'New here?' : 'Already have an account?' }}
+          <button type="button" @click="toggleAuthMode">
+            {{ authMode === 'login' ? 'Create account' : 'Login instead' }}
+          </button>
+        </p>
+
+        <p v-if="authError" class="auth-message error">{{ authError }}</p>
+        <p v-else-if="authSuccess" class="auth-message success">{{ authSuccess }}</p>
       </div>
     </div>
 
-    <!-- Add / Edit modal -->
-    <transition name="fade">
-      <div v-if="showForm" class="modal-overlay" @click.self="closeForm">
-        <div class="modal-panel">
-          <div class="modal-header">
-            <h2 class="section-title">{{ isEditing ? 'Edit item' : 'Add new item' }}</h2>
-            <button class="modal-close" @click="closeForm" aria-label="Close">×</button>
+    <div v-else class="app">
+      <div class="container">
+        <header class="header">
+          <div class="header-text">
+            <span class="eyebrow">Your closet, organized</span>
+            <h1 class="title">Wardrobe</h1>
+            <p class="welcome-text">Welcome, {{ currentUser?.name || currentUser?.email }}</p>
+          </div>
+          <div class="header-actions">
+            <button class="btn btn-secondary" @click="logout">Logout</button>
+            <button class="btn-add" @click="openAddForm">
+              <span class="btn-add-icon">+</span>
+              Add item
+            </button>
+          </div>
+        </header>
+
+        <div class="stats-strip">
+          <div class="stat">
+            <span class="stat-value">{{ clothingItems.length }}</span>
+            <span class="stat-label">Items</span>
+          </div>
+          <div class="stat-divider"></div>
+          <div class="stat">
+            <span class="stat-value">฿{{ formatNumber(totalValue) }}</span>
+            <span class="stat-label">Total value</span>
+          </div>
+          <div class="stat-divider"></div>
+          <div class="stat">
+            <span class="stat-value" :class="{ 'stat-warning': lowStockCount > 0 }">{{ lowStockCount }}</span>
+            <span class="stat-label">Running low</span>
+          </div>
+        </div>
+
+        <div class="list-section">
+          <div v-if="loading" class="loading">
+            <div class="spinner"></div>
+            <p>Loading your wardrobe</p>
           </div>
 
-          <form @submit.prevent="handleSubmit" class="clothing-form">
-            <div class="form-group">
-              <label>Name</label>
-              <input
-                v-model="formData.name"
-                type="text"
-                required
-                placeholder="e.g. Oversized denim jacket"
-                class="form-input"
-              />
+          <div v-else-if="clothingItems.length === 0" class="empty-state">
+            <div class="empty-mark"></div>
+            <p class="empty-title">Nothing here yet</p>
+            <p class="empty-hint">Add your first piece to start building your closet.</p>
+            <button class="btn-add btn-add-empty" @click="openAddForm">
+              <span class="btn-add-icon">+</span>
+              Add item
+            </button>
+          </div>
+
+          <div v-else class="clothing-grid">
+            <div v-for="item in clothingItems" :key="item.id" class="clothing-card">
+              <div class="card-image">
+                <span class="tag-hole"></span>
+                <img
+                  v-if="item.image_url"
+                  :src="item.image_url.startsWith('http') ? item.image_url : `http://localhost:5002${item.image_url}`"
+                  :alt="item.name"
+                  @error="handleImageError"
+                />
+                <div v-else class="placeholder-image">{{ item.category.charAt(0) }}</div>
+                <div class="placeholder-image placeholder-fallback">{{ item.category.charAt(0) }}</div>
+                <span class="category-badge">{{ item.category }}</span>
+              </div>
+              <div class="card-content">
+                <h3 class="item-name">{{ item.name }}</h3>
+                <div class="item-details">
+                  <span class="detail">{{ item.size }}</span>
+                  <span class="detail">{{ item.color }}</span>
+                </div>
+                <div class="item-price-stock">
+                  <span class="price">฿{{ parseFloat(item.price || 0).toFixed(2) }}</span>
+                  <span class="stock" :class="getStockClass(item.stock)">
+                    <span class="stock-dot"></span>
+                    {{ item.stock }} in stock
+                  </span>
+                </div>
+                <div class="card-actions">
+                  <button @click="editItem(item)" class="btn-icon btn-edit">Edit</button>
+                  <button @click="deleteItem(item.id)" class="btn-icon btn-delete">Delete</button>
+                </div>
+              </div>
             </div>
-            <div class="form-group">
-              <label>Category</label>
-              <select v-model="formData.category" required class="form-input">
-                <option value="">Select category</option>
-                <option value="T-Shirt">T-Shirt</option>
-                <option value="Shirt">Shirt</option>
-                <option value="Pants">Pants</option>
-                <option value="Dress">Dress</option>
-                <option value="Jacket">Jacket</option>
-                <option value="Hoodie">Hoodie</option>
-                <option value="Shorts">Shorts</option>
-                <option value="Skirt">Skirt</option>
-              </select>
+          </div>
+        </div>
+      </div>
+
+      <transition name="fade">
+        <div v-if="showForm" class="modal-overlay" @click.self="closeForm">
+          <div class="modal-panel">
+            <div class="modal-header">
+              <h2 class="section-title">{{ isEditing ? 'Edit item' : 'Add new item' }}</h2>
+              <button class="modal-close" @click="closeForm" aria-label="Close">×</button>
             </div>
-            <div class="form-row">
+
+            <form @submit.prevent="handleSubmit" class="clothing-form">
               <div class="form-group">
-                <label>Size</label>
-                <select v-model="formData.size" required class="form-input">
-                  <option value="">Select size</option>
-                  <option value="XS">XS</option>
-                  <option value="S">S</option>
-                  <option value="M">M</option>
-                  <option value="L">L</option>
-                  <option value="XL">XL</option>
-                  <option value="XXL">XXL</option>
+                <label>Name</label>
+                <input v-model="formData.name" type="text" required placeholder="e.g. Oversized denim jacket" class="form-input" />
+              </div>
+              <div class="form-group">
+                <label>Category</label>
+                <select v-model="formData.category" required class="form-input">
+                  <option value="">Select category</option>
+                  <option value="T-Shirt">T-Shirt</option>
+                  <option value="Shirt">Shirt</option>
+                  <option value="Pants">Pants</option>
+                  <option value="Dress">Dress</option>
+                  <option value="Jacket">Jacket</option>
+                  <option value="Hoodie">Hoodie</option>
+                  <option value="Shorts">Shorts</option>
+                  <option value="Skirt">Skirt</option>
                 </select>
               </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Size</label>
+                  <select v-model="formData.size" required class="form-input">
+                    <option value="">Select size</option>
+                    <option value="XS">XS</option>
+                    <option value="S">S</option>
+                    <option value="M">M</option>
+                    <option value="L">L</option>
+                    <option value="XL">XL</option>
+                    <option value="XXL">XXL</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Color</label>
+                  <input v-model="formData.color" type="text" required placeholder="Color" class="form-input" />
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Price (฿)</label>
+                  <input v-model.number="formData.price" type="number" required min="0" step="0.01" placeholder="0.00" class="form-input" />
+                </div>
+                <div class="form-group">
+                  <label>Stock</label>
+                  <input v-model.number="formData.stock" type="number" required min="0" placeholder="0" class="form-input" />
+                </div>
+              </div>
               <div class="form-group">
-                <label>Color</label>
-                <input
-                  v-model="formData.color"
-                  type="text"
-                  required
-                  placeholder="Color"
-                  class="form-input"
-                />
+                <label>Image (optional)</label>
+                <label class="file-drop">
+                  <input type="file" accept="image/*" @change="handleFileChange" class="file-input" />
+                  <span v-if="!imagePreview">Choose a photo</span>
+                  <span v-else>Change photo</span>
+                </label>
+                <div v-if="imagePreview" class="image-preview">
+                  <img :src="imagePreview" alt="Preview" />
+                  <button type="button" @click="removeImage" class="remove-image-btn">×</button>
+                </div>
               </div>
-            </div>
-            <div class="form-row">
-              <div class="form-group">
-                <label>Price (฿)</label>
-                <input
-                  v-model.number="formData.price"
-                  type="number"
-                  required
-                  min="0"
-                  step="0.01"
-                  placeholder="0.00"
-                  class="form-input"
-                />
+              <div class="form-actions">
+                <button type="submit" class="btn btn-primary">{{ isEditing ? 'Save changes' : 'Add item' }}</button>
+                <button type="button" @click="closeForm" class="btn btn-secondary">Cancel</button>
               </div>
-              <div class="form-group">
-                <label>Stock</label>
-                <input
-                  v-model.number="formData.stock"
-                  type="number"
-                  required
-                  min="0"
-                  placeholder="0"
-                  class="form-input"
-                />
-              </div>
-            </div>
-            <div class="form-group">
-              <label>Image (optional)</label>
-              <label class="file-drop">
-                <input
-                  type="file"
-                  accept="image/*"
-                  @change="handleFileChange"
-                  class="file-input"
-                />
-                <span v-if="!imagePreview">Choose a photo</span>
-                <span v-else>Change photo</span>
-              </label>
-              <div v-if="imagePreview" class="image-preview">
-                <img :src="imagePreview" alt="Preview" />
-                <button type="button" @click="removeImage" class="remove-image-btn">×</button>
-              </div>
-            </div>
-            <div class="form-actions">
-              <button type="submit" class="btn btn-primary">
-                {{ isEditing ? 'Save changes' : 'Add item' }}
-              </button>
-              <button type="button" @click="closeForm" class="btn btn-secondary">
-                Cancel
-              </button>
-            </div>
-          </form>
+            </form>
+          </div>
         </div>
-      </div>
-    </transition>
+      </transition>
 
-    <!-- Delete Confirmation Modal -->
-    <transition name="fade">
-      <div v-if="showDeleteModal" class="modal-overlay" @click.self="cancelDelete">
-        <div class="modal-panel delete-modal">
-          <div class="modal-header">
-            <h2 class="section-title">Delete item</h2>
-          </div>
-          <p class="delete-message">Delete this item from your wardrobe?</p>
-          <div class="modal-actions">
-            <button @click="confirmDelete" class="btn btn-danger">Delete</button>
-            <button @click="cancelDelete" class="btn btn-secondary">Cancel</button>
+      <transition name="fade">
+        <div v-if="showDeleteModal" class="modal-overlay" @click.self="cancelDelete">
+          <div class="modal-panel delete-modal">
+            <div class="modal-header">
+              <h2 class="section-title">Delete item</h2>
+            </div>
+            <p class="delete-message">Delete this item from your wardrobe?</p>
+            <div class="modal-actions">
+              <button @click="confirmDelete" class="btn btn-danger">Delete</button>
+              <button @click="cancelDelete" class="btn btn-secondary">Cancel</button>
+            </div>
           </div>
         </div>
-      </div>
-    </transition>
+      </transition>
+    </div>
   </div>
 </template>
 
@@ -243,6 +227,13 @@ const imagePreview = ref(null)
 const showForm = ref(false)
 const showDeleteModal = ref(false)
 const deleteItemId = ref(null)
+const authMode = ref('login')
+const authLoading = ref(false)
+const authError = ref('')
+const authSuccess = ref('')
+const currentUser = ref(null)
+const token = ref('')
+const isAuthenticated = computed(() => Boolean(token.value))
 
 const formData = ref({
   name: '',
@@ -251,6 +242,12 @@ const formData = ref({
   color: '',
   price: '',
   stock: ''
+})
+
+const authForm = ref({
+  name: '',
+  email: '',
+  password: ''
 })
 
 const totalValue = computed(() =>
@@ -265,16 +262,78 @@ const formatNumber = (num) => {
   return num.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
 }
 
+const getAuthHeaders = () => {
+  return token.value ? { Authorization: `Bearer ${token.value}` } : {}
+}
+
+const saveSession = (newToken, user) => {
+  token.value = newToken
+  currentUser.value = user
+  localStorage.setItem('jwt_token', newToken)
+  localStorage.setItem('user', JSON.stringify(user))
+}
+
+const clearSession = () => {
+  token.value = ''
+  currentUser.value = null
+  clothingItems.value = []
+  localStorage.removeItem('jwt_token')
+  localStorage.removeItem('user')
+}
+
 const fetchClothing = async () => {
+  if (!token.value) return
+
   try {
     loading.value = true
-    const response = await axios.get(`${API_URL}/clothing`)
+    const response = await axios.get(`${API_URL}/clothing`, { headers: getAuthHeaders() })
     clothingItems.value = response.data
   } catch (error) {
     console.error('Error fetching clothing:', error)
-    alert('Could not load your wardrobe. Please try again.')
+    if (error.response?.status === 401 || error.response?.status === 403) {
+      logout(false)
+    } else {
+      alert('Could not load your wardrobe. Please try again.')
+    }
   } finally {
     loading.value = false
+  }
+}
+
+const handleAuthSubmit = async () => {
+  authError.value = ''
+  authSuccess.value = ''
+  authLoading.value = true
+
+  try {
+    const endpoint = authMode.value === 'register' ? 'register' : 'login'
+    const payload = authMode.value === 'register'
+      ? { name: authForm.value.name, email: authForm.value.email, password: authForm.value.password }
+      : { email: authForm.value.email, password: authForm.value.password }
+
+    const response = await axios.post(`${API_URL}/auth/${endpoint}`, payload)
+    const { token: newToken, user } = response.data
+    saveSession(newToken, user)
+    authSuccess.value = authMode.value === 'register' ? 'Account created successfully!' : 'Login successful!'
+    authForm.value = { name: '', email: '', password: '' }
+    await fetchClothing()
+  } catch (error) {
+    authError.value = error.response?.data?.error || 'Authentication failed'
+  } finally {
+    authLoading.value = false
+  }
+}
+
+const toggleAuthMode = () => {
+  authMode.value = authMode.value === 'login' ? 'register' : 'login'
+  authError.value = ''
+  authSuccess.value = ''
+}
+
+const logout = (showMessage = true) => {
+  clearSession()
+  if (showMessage) {
+    authSuccess.value = 'You have been logged out.'
   }
 }
 
@@ -297,11 +356,11 @@ const handleSubmit = async () => {
         formDataToSend.append('image_url', formData.value.image_url || '')
       }
       await axios.put(`${API_URL}/clothing/${editingId.value}`, formDataToSend, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+        headers: { ...getAuthHeaders(), 'Content-Type': 'multipart/form-data' }
       })
     } else {
       await axios.post(`${API_URL}/clothing`, formDataToSend, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+        headers: { ...getAuthHeaders(), 'Content-Type': 'multipart/form-data' }
       })
     }
     closeForm()
@@ -341,7 +400,7 @@ const deleteItem = (id) => {
 
 const confirmDelete = async () => {
   try {
-    await axios.delete(`${API_URL}/clothing/${deleteItemId.value}`)
+    await axios.delete(`${API_URL}/clothing/${deleteItemId.value}`, { headers: getAuthHeaders() })
     showDeleteModal.value = false
     deleteItemId.value = null
     fetchClothing()
@@ -400,8 +459,29 @@ const handleImageError = (event) => {
   event.target.nextElementSibling.style.display = 'flex'
 }
 
-onMounted(() => {
-  fetchClothing()
+onMounted(async () => {
+  const storedToken = localStorage.getItem('jwt_token')
+  const storedUser = localStorage.getItem('user')
+
+  if (!storedToken) {
+    loading.value = false
+    return
+  }
+
+  token.value = storedToken
+  if (storedUser) {
+    currentUser.value = JSON.parse(storedUser)
+  }
+
+  try {
+    const response = await axios.get(`${API_URL}/auth/me`, { headers: getAuthHeaders() })
+    currentUser.value = response.data.user
+    localStorage.setItem('user', JSON.stringify(response.data.user))
+    await fetchClothing()
+  } catch (error) {
+    console.error('Error validating session:', error)
+    logout(false)
+  }
 })
 </script>
 
