@@ -4,26 +4,71 @@
       <div class="auth-card">
         <div class="auth-header">
           <span class="eyebrow">Secure wardrobe access</span>
-          <h1>{{ authMode === 'login' ? 'Login to your wardrobe' : 'Create your account' }}</h1>
+          <h1>
+            {{ authMode === 'login' ? 'Login to your wardrobe' : authMode === 'register' ? 'Create your account' : 'Reset your password' }}
+          </h1>
         </div>
 
         <form @submit.prevent="handleAuthSubmit" class="auth-form">
-          <input v-if="authMode === 'register'" v-model="authForm.name" type="text" placeholder="Full name" required />
-          <input v-model="authForm.email" type="email" placeholder="Email" required />
-          <input v-model="authForm.password" type="password" placeholder="Password" required />
+          <input
+            v-if="authMode === 'register'"
+            v-model="authForm.name"
+            type="text"
+            placeholder="Full name"
+            required
+          />
+          <input
+            v-model="authMode === 'reset' ? resetFormState.email : authForm.email"
+            type="email"
+            placeholder="Email"
+            required
+          />
+          <input
+            v-if="authMode !== 'reset'"
+            v-model="authForm.password"
+            type="password"
+            placeholder="Password"
+            required
+          />
+          <template v-else>
+            <input
+              v-model="resetFormState.newPassword"
+              type="password"
+              placeholder="New password"
+              required
+            />
+            <input
+              v-model="resetFormState.confirmPassword"
+              type="password"
+              placeholder="Confirm new password"
+              required
+            />
+          </template>
 
           <div class="auth-actions">
             <button class="btn btn-primary auth-submit-btn" type="submit" :disabled="authLoading">
-              {{ authLoading ? 'Working...' : authMode === 'login' ? 'Login' : 'Register' }}
+              {{ authLoading ? 'Working...' : authMode === 'register' ? 'Register' : authMode === 'reset' ? 'Reset password' : 'Login' }}
             </button>
           </div>
         </form>
 
         <p class="auth-toggle">
-          {{ authMode === 'login' ? 'New here?' : 'Already have an account?' }}
-          <button type="button" @click="toggleAuthMode">
-            {{ authMode === 'login' ? 'Create account' : 'Login instead' }}
-          </button>
+          <template v-if="authMode === 'login'">
+            New here?
+            <button type="button" @click="toggleAuthMode('register')">Create account</button>
+          </template>
+          <template v-else-if="authMode === 'register'">
+            Already have an account?
+            <button type="button" @click="toggleAuthMode('login')">Login instead</button>
+          </template>
+          <template v-else>
+            Remembered your password?
+            <button type="button" @click="toggleAuthMode('login')">Login instead</button>
+          </template>
+        </p>
+
+        <p v-if="authMode === 'login'" class="auth-help">
+          <button type="button" class="link-button" @click="toggleAuthMode('reset')">Forgot password?</button>
         </p>
 
         <p v-if="authError" class="auth-message error">{{ authError }}</p>
@@ -385,6 +430,12 @@ const authForm = ref({
   password: ''
 })
 
+const resetFormState = ref({
+  email: '',
+  newPassword: '',
+  confirmPassword: ''
+})
+
 const settingsForm = ref({
   name: '',
   email: ''
@@ -566,28 +617,58 @@ const handleAuthSubmit = async () => {
   authLoading.value = true
 
   try {
-    const endpoint = authMode.value === 'register' ? 'register' : 'login'
+    const endpoint = authMode.value === 'register'
+      ? 'register'
+      : authMode.value === 'reset'
+        ? 'reset-password'
+        : 'login'
+
+    if (authMode.value === 'reset' && resetFormState.value.newPassword !== resetFormState.value.confirmPassword) {
+      throw new Error('Passwords do not match')
+    }
+
     const payload = authMode.value === 'register'
       ? { name: authForm.value.name, email: authForm.value.email, password: authForm.value.password }
-      : { email: authForm.value.email, password: authForm.value.password }
+      : authMode.value === 'reset'
+        ? { email: resetFormState.value.email, newPassword: resetFormState.value.newPassword }
+        : { email: authForm.value.email, password: authForm.value.password }
 
     const response = await axios.post(`${API_URL}/auth/${endpoint}`, payload)
+
+    if (authMode.value === 'reset') {
+      authSuccess.value = response.data.message || 'Password reset successful. Please login.'
+      resetFormState.value = { email: '', newPassword: '', confirmPassword: '' }
+      authMode.value = 'login'
+      return
+    }
+
     const { token: newToken, user } = response.data
     saveSession(newToken, user)
     authSuccess.value = authMode.value === 'register' ? 'Account created successfully!' : 'Login successful!'
     authForm.value = { name: '', email: '', password: '' }
     await fetchClothing()
   } catch (error) {
-    authError.value = error.response?.data?.error || 'Authentication failed'
+    authError.value = error.response?.data?.error || error.message || 'Authentication failed'
   } finally {
     authLoading.value = false
   }
 }
 
-const toggleAuthMode = () => {
-  authMode.value = authMode.value === 'login' ? 'register' : 'login'
+const toggleAuthMode = (mode) => {
+  if (mode) {
+    authMode.value = mode
+  } else {
+    authMode.value = authMode.value === 'login' ? 'register' : 'login'
+  }
+
   authError.value = ''
   authSuccess.value = ''
+
+  if (authMode.value === 'reset') {
+    authForm.value = { name: '', email: '', password: '' }
+  } else {
+    resetFormState.value = { email: '', newPassword: '', confirmPassword: '' }
+  }
 }
 
 const logout = (showMessage = true) => {
@@ -1487,6 +1568,27 @@ onMounted(async () => {
 
 .btn-secondary:hover {
   background: #f0efec;
+}
+
+.link-button {
+  display: inline-flex;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.link-button:hover,
+.link-button:focus {
+  color: var(--accent);
+}
+
+.auth-help {
+  margin-top: 0.75rem;
 }
 
 .btn-danger {

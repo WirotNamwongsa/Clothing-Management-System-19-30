@@ -183,6 +183,32 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
+app.post('/api/auth/reset-password', async (req, res) => {
+  try {
+    const { email, newPassword } = req.body;
+
+    if (!email || !newPassword) {
+      return res.status(400).json({ error: 'Email and new password are required' });
+    }
+
+    const normalizedEmail = email.toLowerCase();
+    const result = await pool.query('SELECT id FROM users WHERE email = $1', [normalizedEmail]);
+    const user = result.rows[0];
+
+    if (!user) {
+      return res.status(404).json({ error: 'Email not found' });
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [passwordHash, user.id]);
+
+    res.json({ message: 'Password reset successful. Please login with your new password.' });
+  } catch (error) {
+    console.error('Error resetting password:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 app.get('/api/auth/me', authenticateToken, async (req, res) => {
   try {
     const result = await pool.query('SELECT id, name, email FROM users WHERE id = $1', [req.user.id]);
