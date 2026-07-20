@@ -280,6 +280,24 @@
                 <button type="button" class="btn btn-secondary" @click="closeSettings">Cancel</button>
               </div>
             </form>
+            <div class="settings-divider"></div>
+            <form class="settings-form" @submit.prevent="changePassword">
+              <div>
+                <h3 class="settings-section-title">Change password</h3>
+                <p class="settings-section-hint">Use at least 8 characters for your new password.</p>
+              </div>
+              <div class="form-group">
+                <label for="current-password">Current password</label>
+                <input id="current-password" v-model="passwordForm.currentPassword" class="form-input" type="password" required autocomplete="current-password" />
+              </div>
+              <div class="form-group">
+                <label for="new-password">New password</label>
+                <input id="new-password" v-model="passwordForm.newPassword" class="form-input" type="password" required minlength="8" autocomplete="new-password" />
+              </div>
+              <p v-if="passwordError" class="settings-message error">{{ passwordError }}</p>
+              <p v-else-if="passwordSuccess" class="settings-message success">{{ passwordSuccess }}</p>
+              <button type="submit" class="btn btn-primary" :disabled="passwordLoading">{{ passwordLoading ? 'Updating...' : 'Update password' }}</button>
+            </form>
           </div>
         </div>
       </transition>
@@ -317,6 +335,9 @@ const activeNavigation = ref('wardrobe')
 const settingsLoading = ref(false)
 const settingsError = ref('')
 const settingsSuccess = ref('')
+const passwordLoading = ref(false)
+const passwordError = ref('')
+const passwordSuccess = ref('')
 const isAuthenticated = computed(() => Boolean(token.value))
 
 const formData = ref({
@@ -337,6 +358,11 @@ const authForm = ref({
 const settingsForm = ref({
   name: '',
   email: ''
+})
+
+const passwordForm = ref({
+  currentPassword: '',
+  newPassword: ''
 })
 
 const totalValue = computed(() =>
@@ -397,6 +423,9 @@ const openSettings = () => {
   }
   settingsError.value = ''
   settingsSuccess.value = ''
+  passwordError.value = ''
+  passwordSuccess.value = ''
+  passwordForm.value = { currentPassword: '', newPassword: '' }
   showSettings.value = true
 }
 
@@ -404,6 +433,8 @@ const closeSettings = () => {
   showSettings.value = false
   settingsError.value = ''
   settingsSuccess.value = ''
+  passwordError.value = ''
+  passwordSuccess.value = ''
 }
 
 const saveSettings = async () => {
@@ -420,6 +451,22 @@ const saveSettings = async () => {
     settingsError.value = error.response?.data?.error || 'Could not update your account. Please try again.'
   } finally {
     settingsLoading.value = false
+  }
+}
+
+const changePassword = async () => {
+  passwordLoading.value = true
+  passwordError.value = ''
+  passwordSuccess.value = ''
+
+  try {
+    const response = await axios.put(`${API_URL}/auth/me/password`, passwordForm.value, { headers: getAuthHeaders() })
+    passwordForm.value = { currentPassword: '', newPassword: '' }
+    passwordSuccess.value = response.data.message
+  } catch (error) {
+    passwordError.value = error.response?.data?.error || 'Could not update your password. Please try again.'
+  } finally {
+    passwordLoading.value = false
   }
 }
 
@@ -1445,6 +1492,23 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+}
+
+.settings-divider {
+  height: 1px;
+  margin: 1.75rem 0;
+  background: var(--line);
+}
+
+.settings-section-title {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 1.05rem;
+}
+
+.settings-section-hint {
+  margin-top: 0.25rem;
+  color: var(--ink-soft);
+  font-size: 0.84rem;
 }
 
 .settings-message {
