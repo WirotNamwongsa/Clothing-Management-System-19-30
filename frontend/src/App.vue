@@ -5,7 +5,6 @@
         <div class="auth-header">
           <span class="eyebrow">Secure wardrobe access</span>
           <h1>{{ authMode === 'login' ? 'Login to your wardrobe' : 'Create your account' }}</h1>
-          <p>Register and sign in with JWT to manage your clothing inventory.</p>
         </div>
 
         <form @submit.prevent="handleAuthSubmit" class="auth-form">
