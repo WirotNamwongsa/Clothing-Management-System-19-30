@@ -338,13 +338,6 @@
               <button class="modal-close" @click="closeOutfitsModal" aria-label="Close">×</button>
             </div>
 
-            <div class="outfits-modal-header">
-              <button class="btn-add" @click="openOutfitForm">
-                <span class="btn-add-icon">+</span>
-                Create outfit
-              </button>
-            </div>
-
             <div v-if="outfitsLoading" class="loading">
               <div class="spinner"></div>
               <p>Loading outfits</p>
