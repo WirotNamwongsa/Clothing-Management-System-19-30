@@ -113,6 +113,27 @@ const initDB = async () => {
       ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE CASCADE
     `);
 
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS outfits (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        description TEXT,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS outfit_items (
+        id SERIAL PRIMARY KEY,
+        outfit_id INTEGER REFERENCES outfits(id) ON DELETE CASCADE,
+        clothing_id INTEGER REFERENCES clothing(id) ON DELETE CASCADE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(outfit_id, clothing_id)
+      )
+    `);
+
     console.log('Database tables initialized');
   } catch (error) {
     console.error('Error initializing database:', error);
@@ -260,6 +281,7 @@ app.put('/api/auth/me/password', authenticateToken, async (req, res) => {
 });
 
 app.use('/api/clothing', authenticateToken);
+app.use('/api/outfits', authenticateToken);
 
 // CRUD Routes
 app.get('/api/clothing', async (req, res) => {
@@ -340,6 +362,198 @@ app.delete('/api/clothing/:id', async (req, res) => {
     res.json({ message: 'Clothing item deleted successfully' });
   } catch (error) {
     console.error('Error deleting clothing:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Outfit Routes
+app.get('/api/outfits', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT o.*, 
+        COALESCE(json_agg(
+          json_build_object(
+            'id', c.id,
+            'name', c.name,
+            'category', c.category,
+            'size', c.size,
+            'color', c.color,
+            'price', c.price,
+            'image_url', c.image_url
+          )
+        ) FILTER (WHERE c.id IS NOT NULL), '[]') as items
+      FROM outfits o
+      LEFT JOIN outfit_items oi ON o.id = oi.outfit_id
+      LEFT JOIN clothing c ON oi.clothing_id = c.id
+      WHERE o.user_id = $1
+      GROUP BY o.id
+      ORDER BY o.created_at DESC
+    `, [req.user.id]);
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching outfits:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.get('/api/outfits/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query(`
+      SELECT o.*, 
+        COALESCE(json_agg(
+          json_build_object(
+            'id', c.id,
+            'name', c.name,
+            'category', c.category,
+            'size', c.size,
+            'color', c.color,
+            'price', c.price,
+            'image_url', c.image_url
+          )
+        ) FILTER (WHERE c.id IS NOT NULL), '[]') as items
+      FROM outfits o
+      LEFT JOIN outfit_items oi ON o.id = oi.outfit_id
+      LEFT JOIN clothing c ON oi.clothing_id = c.id
+      WHERE o.id = $1 AND o.user_id = $2
+      GROUP BY o.id
+    `, [id, req.user.id]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Outfit not found' });
+    }
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error fetching outfit:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.post('/api/outfits', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { name, description, items } = req.body;
+    
+    await client.query('BEGIN');
+    
+    const outfitResult = await client.query(
+      'INSERT INTO outfits (name, description, user_id) VALUES ($1, $2, $3) RETURNING *',
+      [name, description || null, req.user.id]
+    );
+    
+    const outfitId = outfitResult.rows[0].id;
+    
+    if (items && items.length > 0) {
+      for (const clothingId of items) {
+        await client.query(
+          'INSERT INTO outfit_items (outfit_id, clothing_id) VALUES ($1, $2)',
+          [outfitId, clothingId]
+        );
+      }
+    }
+    
+    await client.query('COMMIT');
+    
+    const finalResult = await pool.query(`
+      SELECT o.*, 
+        COALESCE(json_agg(
+          json_build_object(
+            'id', c.id,
+            'name', c.name,
+            'category', c.category,
+            'size', c.size,
+            'color', c.color,
+            'price', c.price,
+            'image_url', c.image_url
+          )
+        ) FILTER (WHERE c.id IS NOT NULL), '[]') as items
+      FROM outfits o
+      LEFT JOIN outfit_items oi ON o.id = oi.outfit_id
+      LEFT JOIN clothing c ON oi.clothing_id = c.id
+      WHERE o.id = $1
+      GROUP BY o.id
+    `, [outfitId]);
+    
+    res.status(201).json(finalResult.rows[0]);
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error creating outfit:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    client.release();
+  }
+});
+
+app.put('/api/outfits/:id', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { id } = req.params;
+    const { name, description, items } = req.body;
+    
+    await client.query('BEGIN');
+    
+    const outfitResult = await client.query(
+      'UPDATE outfits SET name = $1, description = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3 AND user_id = $4 RETURNING *',
+      [name, description || null, id, req.user.id]
+    );
+    
+    if (outfitResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Outfit not found' });
+    }
+    
+    await client.query('DELETE FROM outfit_items WHERE outfit_id = $1', [id]);
+    
+    if (items && items.length > 0) {
+      for (const clothingId of items) {
+        await client.query(
+          'INSERT INTO outfit_items (outfit_id, clothing_id) VALUES ($1, $2)',
+          [id, clothingId]
+        );
+      }
+    }
+    
+    await client.query('COMMIT');
+    
+    const finalResult = await pool.query(`
+      SELECT o.*, 
+        COALESCE(json_agg(
+          json_build_object(
+            'id', c.id,
+            'name', c.name,
+            'category', c.category,
+            'size', c.size,
+            'color', c.color,
+            'price', c.price,
+            'image_url', c.image_url
+          )
+        ) FILTER (WHERE c.id IS NOT NULL), '[]') as items
+      FROM outfits o
+      LEFT JOIN outfit_items oi ON o.id = oi.outfit_id
+      LEFT JOIN clothing c ON oi.clothing_id = c.id
+      WHERE o.id = $1
+      GROUP BY o.id
+    `, [id]);
+    
+    res.json(finalResult.rows[0]);
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error updating outfit:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    client.release();
+  }
+});
+
+app.delete('/api/outfits/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query('DELETE FROM outfits WHERE id = $1 AND user_id = $2 RETURNING *', [id, req.user.id]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Outfit not found' });
+    }
+    res.json({ message: 'Outfit deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting outfit:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

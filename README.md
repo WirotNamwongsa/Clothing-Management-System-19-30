@@ -1,145 +1,155 @@
 # Clothing Management System
 
-A modern, stylish clothing management system built with Vue.js, Express, PostgreSQL, and Docker. Features a teen-friendly UI with smooth animations and full CRUD functionality.
+A full-stack clothing management application built with Vue.js, Express, PostgreSQL, and Docker. The app supports user authentication, clothing inventory management, outfit planning, and image uploads.
 
 ## Tech Stack
 
-- **Frontend**: Vue.js 3 + Vite
-- **Backend**: Express.js
-- **Database**: PostgreSQL
-- **Containerization**: Docker & Docker Compose
+- Frontend: Vue 3 + Vite
+- Backend: Express.js + Node.js
+- Database: PostgreSQL
+- Containerization: Docker Compose
 
 ## Features
 
-- Full CRUD operations (Create, Read, Update, Delete)
-- Modern, teen-friendly UI design
-- Beautiful gradient backgrounds
-- Smooth animations and transitions
-- Responsive design
-- Image support for clothing items
-- Stock management with status indicators
+- User registration and login
+- JWT-based authentication
+- CRUD for clothing items
+- Image upload support for clothing
+- Outfit creation with clothing items
+- Responsive UI for managing inventory
 
-## Running with Docker Desktop
+## Project Structure
 
-### Prerequisites
-- Docker Desktop installed and running
-
-### Quick Start
-
-1. Clone the repository:
-```bash
-git clone <repository-url>
-cd Clothing-Management-System-19-30
+```text
+Clothing-Management-System-19-30/
+├── backend/
+│   ├── server.js
+│   ├── package.json
+│   ├── Dockerfile
+│   └── uploads/
+├── frontend/
+│   ├── src/
+│   │   ├── App.vue
+│   │   ├── main.js
+│   │   └── style.css
+│   ├── index.html
+│   ├── package.json
+│   ├── vite.config.js
+│   └── Dockerfile
+├── docker-compose.yml
+└── README.md
 ```
 
-2. Build and run all services:
+## Run with Docker Compose
+
+### Prerequisites
+
+- Docker Desktop installed and running
+
+### Start the application
+
 ```bash
 docker-compose up --build
 ```
 
-3. Access the application:
-- Frontend: http://localhost:3000
-- Backend API: http://localhost:5000/api
-- Database: localhost:5432
+### Access the app
 
-### Stopping the Application
+- Frontend: http://localhost:3000
+- Backend API: http://localhost:5002/api
+- PostgreSQL: localhost:5432
+
+### Stop the application
 
 ```bash
 docker-compose down
 ```
 
-To remove volumes (this will delete all data):
+To remove volumes and reset stored data:
+
 ```bash
 docker-compose down -v
 ```
 
-## Project Structure
+## Run Locally Without Docker
 
-```
-Clothing-Management-System-19-30/
-├── backend/
-│   ├── server.js          # Express server with CRUD endpoints
-│   ├── package.json       # Backend dependencies
-│   ├── Dockerfile         # Backend Docker configuration
-│   └── .env.example       # Environment variables template
-├── frontend/
-│   ├── src/
-│   │   ├── App.vue        # Main Vue component
-│   │   ├── main.js        # Vue entry point
-│   │   └── style.css      # Global styles
-│   ├── index.html         # HTML template
-│   ├── package.json       # Frontend dependencies
-│   ├── vite.config.js     # Vite configuration
-│   ├── Dockerfile         # Frontend Docker configuration
-│   └── .env.example       # Environment variables template
-└── docker-compose.yml     # Docker Compose configuration
+### Backend
+
+```bash
+cd backend
+npm install
+npm run dev
 ```
 
-## API Endpoints
+The backend will run on port 5002 by default.
 
-- `GET /api/clothing` - Get all clothing items
-- `GET /api/clothing/:id` - Get single clothing item
-- `POST /api/clothing` - Create new clothing item
-- `PUT /api/clothing/:id` - Update clothing item
-- `DELETE /api/clothing/:id` - Delete clothing item
-- `GET /api/health` - Health check
+### Frontend
 
-## Customization
-
-### Environment Variables
-
-**Backend (.env)**
+```bash
+cd frontend
+npm install
+npm run dev
 ```
-DB_HOST=postgres
+
+The frontend will run on Vite's default dev server.
+
+## Environment Variables
+
+### Backend
+
+The backend uses the following environment variables:
+
+```env
+DB_HOST=localhost
 DB_PORT=5432
 DB_NAME=clothing_db
 DB_USER=postgres
 DB_PASSWORD=postgres
-PORT=5000
+PORT=5002
+JWT_SECRET=clothing-secret-key
 ```
 
-**Frontend (.env)**
-```
-VITE_API_URL=http://localhost:5000/api
-```
+### Frontend
 
-## Database Schema
-
-```sql
-CREATE TABLE clothing (
-  id SERIAL PRIMARY KEY,
-  name VARCHAR(255) NOT NULL,
-  category VARCHAR(100) NOT NULL,
-  size VARCHAR(50) NOT NULL,
-  color VARCHAR(100) NOT NULL,
-  price DECIMAL(10, 2) NOT NULL,
-  stock INTEGER DEFAULT 0,
-  image_url TEXT,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+```env
+VITE_API_URL=http://localhost:5002/api
 ```
 
-## Development
+## API Endpoints
 
-### Running without Docker
+### Authentication
 
-**Backend:**
-```bash
-cd backend
-npm install
-cp .env.example .env
-npm start
-```
+- POST /api/auth/register
+- POST /api/auth/login
+- GET /api/auth/me
+- PUT /api/auth/me
+- PUT /api/auth/me/password
 
-**Frontend:**
-```bash
-cd frontend
-npm install
-cp .env.example .env
-npm run dev
-```
+### Clothing
+
+- GET /api/clothing
+- GET /api/clothing/:id
+- POST /api/clothing
+- PUT /api/clothing/:id
+- DELETE /api/clothing/:id
+
+### Outfits
+
+- GET /api/outfits
+- GET /api/outfits/:id
+- POST /api/outfits
+- PUT /api/outfits/:id
+- DELETE /api/outfits/:id
+
+### Health Check
+
+- GET /api/health
+
+## Notes
+
+- Most API routes require a JWT token in the Authorization header.
+- Uploaded images are stored under the backend uploads folder.
+- The database is initialized automatically when the backend starts.
 
 ## License
 
-This project is open source and available for educational purposes.
+This project is intended for learning and educational purposes.

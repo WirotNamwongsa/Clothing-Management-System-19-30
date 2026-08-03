@@ -72,6 +72,11 @@
             <span class="stat-value" :class="{ 'stat-warning': lowStockCount > 0 }">{{ lowStockCount }}</span>
             <span class="stat-label">Running low</span>
           </div>
+          <div class="stat-divider"></div>
+          <button class="btn btn-secondary stat-outfit-btn" @click="openOutfitsModal">
+            <span class="stat-outfit-icon">★</span>
+            My favorite outfit
+          </button>
         </div>
 
         <section v-if="!loading && clothingItems.length" class="filter-bar" aria-label="Search and filter clothing">
@@ -328,6 +333,124 @@
           </div>
         </div>
       </transition>
+
+      <transition name="fade">
+        <div v-if="showOutfitsModal" class="modal-overlay" @click.self="closeOutfitsModal">
+          <div class="modal-panel outfits-list-modal">
+            <div class="modal-header">
+              <h2 class="section-title">My favorite outfit</h2>
+              <button class="modal-close" @click="closeOutfitsModal" aria-label="Close">×</button>
+            </div>
+
+            <div class="outfits-modal-header">
+              <button class="btn-add" @click="openOutfitForm">
+                <span class="btn-add-icon">+</span>
+                Create outfit
+              </button>
+            </div>
+
+            <div v-if="outfitsLoading" class="loading">
+              <div class="spinner"></div>
+              <p>Loading outfits</p>
+            </div>
+
+            <div v-else-if="outfits.length === 0" class="empty-state">
+              <div class="empty-mark"></div>
+              <p class="empty-title">No outfits yet</p>
+              <p class="empty-hint">Create your first outfit by combining clothing items.</p>
+              <button class="btn-add btn-add-empty" @click="openOutfitForm">
+                <span class="btn-add-icon">+</span>
+                Create outfit
+              </button>
+            </div>
+
+            <div v-else class="outfits-grid">
+              <div v-for="outfit in outfits" :key="outfit.id" class="outfit-card">
+                <div class="outfit-header">
+                  <h3 class="outfit-name">{{ outfit.name }}</h3>
+                  <div class="outfit-actions">
+                    <button @click="editOutfit(outfit)" class="btn-icon btn-edit">Edit</button>
+                    <button @click="deleteOutfit(outfit.id)" class="btn-icon btn-delete">Delete</button>
+                  </div>
+                </div>
+                <p v-if="outfit.description" class="outfit-description">{{ outfit.description }}</p>
+                <div class="outfit-items">
+                  <div v-for="item in outfit.items" :key="item.id" class="outfit-item">
+                    <div class="outfit-item-image">
+                      <img
+                        v-if="item.image_url"
+                        :src="item.image_url.startsWith('http') ? item.image_url : `http://localhost:5002${item.image_url}`"
+                        :alt="item.name"
+                        @error="handleImageError"
+                      />
+                      <div v-else class="placeholder-image-small">{{ item.category.charAt(0) }}</div>
+                    </div>
+                    <div class="outfit-item-info">
+                      <p class="outfit-item-name">{{ item.name }}</p>
+                      <p class="outfit-item-details">{{ item.category }} • {{ item.size }}</p>
+                    </div>
+                  </div>
+                </div>
+                <p class="outfit-total">Total: ฿{{ outfitTotalValue(outfit) }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </transition>
+
+      <transition name="fade">
+        <div v-if="showOutfitForm" class="modal-overlay" @click.self="closeOutfitForm">
+          <div class="modal-panel outfit-modal">
+            <div class="modal-header">
+              <h2 class="section-title">{{ isEditingOutfit ? 'Edit outfit' : 'Create new outfit' }}</h2>
+              <button class="modal-close" @click="closeOutfitForm" aria-label="Close">×</button>
+            </div>
+
+            <form @submit.prevent="handleOutfitSubmit" class="clothing-form">
+              <div class="form-group">
+                <label>Outfit name</label>
+                <input v-model="outfitForm.name" type="text" required placeholder="e.g. Casual Friday" class="form-input" />
+              </div>
+              <div class="form-group">
+                <label>Description (optional)</label>
+                <textarea v-model="outfitForm.description" placeholder="Add a note about this outfit..." class="form-input" rows="2"></textarea>
+              </div>
+              <div class="form-group">
+                <label>Select clothing items</label>
+                <div class="clothing-selector">
+                  <div v-for="item in clothingItems" :key="item.id" 
+                       class="clothing-selector-item"
+                       :class="{ selected: outfitForm.items.includes(item.id) }"
+                       @click="toggleClothingItem(item.id)">
+                    <div class="selector-image">
+                      <img
+                        v-if="item.image_url"
+                        :src="item.image_url.startsWith('http') ? item.image_url : `http://localhost:5002${item.image_url}`"
+                        :alt="item.name"
+                      />
+                      <div v-else class="placeholder-image-tiny">{{ item.category.charAt(0) }}</div>
+                    </div>
+                    <div class="selector-info">
+                      <p class="selector-name">{{ item.name }}</p>
+                      <p class="selector-details">{{ item.category }} • {{ item.size }}</p>
+                    </div>
+                    <div class="selector-check">
+                      <span v-if="outfitForm.items.includes(item.id)">✓</span>
+                    </div>
+                  </div>
+                </div>
+                <p v-if="outfitForm.items.length === 0" class="form-hint">Select at least one item</p>
+              </div>
+              <div class="form-actions">
+                <button type="submit" class="btn btn-primary" :disabled="outfitForm.items.length === 0">
+                  {{ isEditingOutfit ? 'Save changes' : 'Create outfit' }}
+                </button>
+                <button type="button" @click="closeOutfitForm" class="btn btn-secondary">Cancel</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </transition>
     </div>
   </div>
 </template>
@@ -369,6 +492,12 @@ const passwordSuccess = ref('')
 const showCurrentPassword = ref(false)
 const showNewPassword = ref(false)
 const isAuthenticated = computed(() => Boolean(token.value))
+const outfits = ref([])
+const outfitsLoading = ref(false)
+const showOutfitForm = ref(false)
+const isEditingOutfit = ref(false)
+const editingOutfitId = ref(null)
+const showOutfitsModal = ref(false)
 
 const formData = ref({
   name: '',
@@ -393,6 +522,12 @@ const settingsForm = ref({
 const passwordForm = ref({
   currentPassword: '',
   newPassword: ''
+})
+
+const outfitForm = ref({
+  name: '',
+  description: '',
+  items: []
 })
 
 const totalValue = computed(() =>
@@ -726,6 +861,108 @@ const handleImageError = (event) => {
   event.target.nextElementSibling.style.display = 'flex'
 }
 
+const outfitTotalValue = (outfit) => {
+  if (!outfit.items || !Array.isArray(outfit.items)) return 0
+  return outfit.items.reduce((sum, item) => sum + (parseFloat(item.price) || 0), 0)
+}
+
+const fetchOutfits = async () => {
+  if (!token.value) return
+
+  try {
+    outfitsLoading.value = true
+    const response = await axios.get(`${API_URL}/outfits`, { headers: getAuthHeaders() })
+    outfits.value = response.data
+  } catch (error) {
+    console.error('Error fetching outfits:', error)
+    if (error.response?.status === 401 || error.response?.status === 403) {
+      logout(false)
+    }
+  } finally {
+    outfitsLoading.value = false
+  }
+}
+
+const openOutfitsModal = () => {
+  showOutfitsModal.value = true
+  fetchOutfits()
+}
+
+const closeOutfitsModal = () => {
+  showOutfitsModal.value = false
+}
+
+const openOutfitForm = () => {
+  resetOutfitForm()
+  showOutfitForm.value = true
+}
+
+const closeOutfitForm = () => {
+  showOutfitForm.value = false
+  resetOutfitForm()
+}
+
+const resetOutfitForm = () => {
+  isEditingOutfit.value = false
+  editingOutfitId.value = null
+  outfitForm.value = {
+    name: '',
+    description: '',
+    items: []
+  }
+}
+
+const editOutfit = (outfit) => {
+  isEditingOutfit.value = true
+  editingOutfitId.value = outfit.id
+  outfitForm.value = {
+    name: outfit.name,
+    description: outfit.description || '',
+    items: outfit.items ? outfit.items.map(item => item.id) : []
+  }
+  showOutfitForm.value = true
+}
+
+const deleteOutfit = async (id) => {
+  if (!confirm('Delete this outfit?')) return
+
+  try {
+    await axios.delete(`${API_URL}/outfits/${id}`, { headers: getAuthHeaders() })
+    fetchOutfits()
+  } catch (error) {
+    console.error('Error deleting outfit:', error)
+    alert('Could not delete this outfit. Please try again.')
+  }
+}
+
+const toggleClothingItem = (itemId) => {
+  const index = outfitForm.value.items.indexOf(itemId)
+  if (index > -1) {
+    outfitForm.value.items.splice(index, 1)
+  } else {
+    outfitForm.value.items.push(itemId)
+  }
+}
+
+const handleOutfitSubmit = async () => {
+  try {
+    if (isEditingOutfit.value) {
+      await axios.put(`${API_URL}/outfits/${editingOutfitId.value}`, outfitForm.value, {
+        headers: getAuthHeaders()
+      })
+    } else {
+      await axios.post(`${API_URL}/outfits`, outfitForm.value, {
+        headers: getAuthHeaders()
+      })
+    }
+    closeOutfitForm()
+    fetchOutfits()
+  } catch (error) {
+    console.error('Error saving outfit:', error)
+    alert('Could not save this outfit. Please try again.')
+  }
+}
+
 onMounted(async () => {
   const storedToken = localStorage.getItem('jwt_token')
   const storedUser = localStorage.getItem('user')
@@ -745,6 +982,7 @@ onMounted(async () => {
     currentUser.value = response.data.user
     localStorage.setItem('user', JSON.stringify(response.data.user))
     await fetchClothing()
+    await fetchOutfits()
   } catch (error) {
     console.error('Error validating session:', error)
     logout(false)
