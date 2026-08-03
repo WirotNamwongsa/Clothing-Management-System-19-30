@@ -43,7 +43,7 @@
           </div>
           <nav class="main-nav" aria-label="Main navigation">
             <button type="button" :class="{ active: activeNavigation === 'wardrobe' }" @click="navigateTo('wardrobe')">Wardrobe</button>
-            <button type="button" :class="{ active: activeNavigation === 'outfits' }" @click="navigateTo('outfits')">Outfits</button>
+            <button type="button" @click="openOutfitsModal">Outfits</button>
             <button type="button" :class="{ active: activeNavigation === 'settings' }" @click="openSettings">Settings</button>
           </nav>
           <div class="header-right">
@@ -161,62 +161,6 @@
                   <button @click="deleteItem(item.id)" class="btn-icon btn-delete">Delete</button>
                 </div>
               </div>
-            </div>
-          </div>
-        </div>
-
-        <div id="outfits" class="list-section">
-          <div class="section-header">
-            <h2 class="section-title">My Outfits</h2>
-            <button class="btn-add" @click="openOutfitForm">
-              <span class="btn-add-icon">+</span>
-              Create outfit
-            </button>
-          </div>
-
-          <div v-if="outfitsLoading" class="loading">
-            <div class="spinner"></div>
-            <p>Loading outfits</p>
-          </div>
-
-          <div v-else-if="outfits.length === 0" class="empty-state">
-            <div class="empty-mark"></div>
-            <p class="empty-title">No outfits yet</p>
-            <p class="empty-hint">Create your first outfit by combining clothing items.</p>
-            <button class="btn-add btn-add-empty" @click="openOutfitForm">
-              <span class="btn-add-icon">+</span>
-              Create outfit
-            </button>
-          </div>
-
-          <div v-else class="outfits-grid">
-            <div v-for="outfit in outfits" :key="outfit.id" class="outfit-card">
-              <div class="outfit-header">
-                <h3 class="outfit-name">{{ outfit.name }}</h3>
-                <div class="outfit-actions">
-                  <button @click="editOutfit(outfit)" class="btn-icon btn-edit">Edit</button>
-                  <button @click="deleteOutfit(outfit.id)" class="btn-icon btn-delete">Delete</button>
-                </div>
-              </div>
-              <p v-if="outfit.description" class="outfit-description">{{ outfit.description }}</p>
-              <div class="outfit-items">
-                <div v-for="item in outfit.items" :key="item.id" class="outfit-item">
-                  <div class="outfit-item-image">
-                    <img
-                      v-if="item.image_url"
-                      :src="item.image_url.startsWith('http') ? item.image_url : `http://localhost:5002${item.image_url}`"
-                      :alt="item.name"
-                      @error="handleImageError"
-                    />
-                    <div v-else class="placeholder-image-small">{{ item.category.charAt(0) }}</div>
-                  </div>
-                  <div class="outfit-item-info">
-                    <p class="outfit-item-name">{{ item.name }}</p>
-                    <p class="outfit-item-details">{{ item.category }} • {{ item.size }}</p>
-                  </div>
-                </div>
-              </div>
-              <p class="outfit-total">Total: ฿{{ outfitTotalValue(outfit) }}</p>
             </div>
           </div>
         </div>
@@ -387,6 +331,70 @@
       </transition>
 
       <transition name="fade">
+        <div v-if="showOutfitsModal" class="modal-overlay" @click.self="closeOutfitsModal">
+          <div class="modal-panel outfits-list-modal">
+            <div class="modal-header">
+              <h2 class="section-title">My Outfits</h2>
+              <button class="modal-close" @click="closeOutfitsModal" aria-label="Close">×</button>
+            </div>
+
+            <div class="outfits-modal-header">
+              <button class="btn-add" @click="openOutfitForm">
+                <span class="btn-add-icon">+</span>
+                Create outfit
+              </button>
+            </div>
+
+            <div v-if="outfitsLoading" class="loading">
+              <div class="spinner"></div>
+              <p>Loading outfits</p>
+            </div>
+
+            <div v-else-if="outfits.length === 0" class="empty-state">
+              <div class="empty-mark"></div>
+              <p class="empty-title">No outfits yet</p>
+              <p class="empty-hint">Create your first outfit by combining clothing items.</p>
+              <button class="btn-add btn-add-empty" @click="openOutfitForm">
+                <span class="btn-add-icon">+</span>
+                Create outfit
+              </button>
+            </div>
+
+            <div v-else class="outfits-grid">
+              <div v-for="outfit in outfits" :key="outfit.id" class="outfit-card">
+                <div class="outfit-header">
+                  <h3 class="outfit-name">{{ outfit.name }}</h3>
+                  <div class="outfit-actions">
+                    <button @click="editOutfit(outfit)" class="btn-icon btn-edit">Edit</button>
+                    <button @click="deleteOutfit(outfit.id)" class="btn-icon btn-delete">Delete</button>
+                  </div>
+                </div>
+                <p v-if="outfit.description" class="outfit-description">{{ outfit.description }}</p>
+                <div class="outfit-items">
+                  <div v-for="item in outfit.items" :key="item.id" class="outfit-item">
+                    <div class="outfit-item-image">
+                      <img
+                        v-if="item.image_url"
+                        :src="item.image_url.startsWith('http') ? item.image_url : `http://localhost:5002${item.image_url}`"
+                        :alt="item.name"
+                        @error="handleImageError"
+                      />
+                      <div v-else class="placeholder-image-small">{{ item.category.charAt(0) }}</div>
+                    </div>
+                    <div class="outfit-item-info">
+                      <p class="outfit-item-name">{{ item.name }}</p>
+                      <p class="outfit-item-details">{{ item.category }} • {{ item.size }}</p>
+                    </div>
+                  </div>
+                </div>
+                <p class="outfit-total">Total: ฿{{ outfitTotalValue(outfit) }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </transition>
+
+      <transition name="fade">
         <div v-if="showOutfitForm" class="modal-overlay" @click.self="closeOutfitForm">
           <div class="modal-panel outfit-modal">
             <div class="modal-header">
@@ -485,6 +493,7 @@ const outfitsLoading = ref(false)
 const showOutfitForm = ref(false)
 const isEditingOutfit = ref(false)
 const editingOutfitId = ref(null)
+const showOutfitsModal = ref(false)
 
 const formData = ref({
   name: '',
@@ -868,6 +877,15 @@ const fetchOutfits = async () => {
   } finally {
     outfitsLoading.value = false
   }
+}
+
+const openOutfitsModal = () => {
+  showOutfitsModal.value = true
+  fetchOutfits()
+}
+
+const closeOutfitsModal = () => {
+  showOutfitsModal.value = false
 }
 
 const openOutfitForm = () => {

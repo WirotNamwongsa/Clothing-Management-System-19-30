@@ -450,6 +450,16 @@ body {
   margin-bottom: 20px;
 }
 
+.outfits-list-modal {
+  width: min(100%, 800px);
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.outfits-modal-header {
+  margin-bottom: 20px;
+}
+
 .outfits-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
