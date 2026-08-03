@@ -48,7 +48,7 @@
           <div class="header-right">
             <p class="welcome-text">Welcome <b>{{ currentUser?.name || currentUser?.email }}</b></p>
             <div class="header-actions">
-              <button class="btn btn-secondary" @click="openOutfitsModal">Outfits</button>
+              <button class="btn btn-secondary" @click="openOutfitsModal">My favorite outfit</button>
               <button class="btn btn-secondary" @click="logout">Logout</button>
               <button class="btn-add" @click="openAddForm">
                 <span class="btn-add-icon">+</span>
@@ -334,7 +334,7 @@
         <div v-if="showOutfitsModal" class="modal-overlay" @click.self="closeOutfitsModal">
           <div class="modal-panel outfits-list-modal">
             <div class="modal-header">
-              <h2 class="section-title">My Outfits</h2>
+              <h2 class="section-title">My favorite outfit</h2>
               <button class="modal-close" @click="closeOutfitsModal" aria-label="Close">×</button>
             </div>
 
