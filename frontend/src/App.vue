@@ -43,12 +43,12 @@
           </div>
           <nav class="main-nav" aria-label="Main navigation">
             <button type="button" :class="{ active: activeNavigation === 'wardrobe' }" @click="navigateTo('wardrobe')">Wardrobe</button>
-            <button type="button" @click="openOutfitsModal">Outfits</button>
             <button type="button" :class="{ active: activeNavigation === 'settings' }" @click="openSettings">Settings</button>
           </nav>
           <div class="header-right">
             <p class="welcome-text">Welcome <b>{{ currentUser?.name || currentUser?.email }}</b></p>
             <div class="header-actions">
+              <button class="btn btn-secondary" @click="openOutfitsModal">Outfits</button>
               <button class="btn btn-secondary" @click="logout">Logout</button>
               <button class="btn-add" @click="openAddForm">
                 <span class="btn-add-icon">+</span>
