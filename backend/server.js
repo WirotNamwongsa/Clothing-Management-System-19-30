@@ -281,6 +281,7 @@ app.put('/api/auth/me/password', authenticateToken, async (req, res) => {
 });
 
 app.use('/api/clothing', authenticateToken);
+app.use('/api/outfits', authenticateToken);
 
 // CRUD Routes
 app.get('/api/clothing', async (req, res) => {
