@@ -48,7 +48,6 @@
           <div class="header-right">
             <p class="welcome-text">Welcome <b>{{ currentUser?.name || currentUser?.email }}</b></p>
             <div class="header-actions">
-              <button class="btn btn-secondary" @click="openOutfitsModal">My favorite outfit</button>
               <button class="btn btn-secondary" @click="logout">Logout</button>
               <button class="btn-add" @click="openAddForm">
                 <span class="btn-add-icon">+</span>
@@ -73,6 +72,11 @@
             <span class="stat-value" :class="{ 'stat-warning': lowStockCount > 0 }">{{ lowStockCount }}</span>
             <span class="stat-label">Running low</span>
           </div>
+          <div class="stat-divider"></div>
+          <button class="btn btn-secondary stat-outfit-btn" @click="openOutfitsModal">
+            <span class="stat-outfit-icon">★</span>
+            My favorite outfit
+          </button>
         </div>
 
         <section v-if="!loading && clothingItems.length" class="filter-bar" aria-label="Search and filter clothing">

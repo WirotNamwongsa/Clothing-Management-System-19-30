@@ -179,6 +179,29 @@ body {
   background: #e5e7eb;
 }
 
+.stat-outfit-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  background: linear-gradient(135deg, #ec4899 0%, #f59e0b 100%);
+  color: white;
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.stat-outfit-btn:hover {
+  transform: translateY(-1px);
+}
+
+.stat-outfit-icon {
+  font-size: 1rem;
+}
+
 .btn, .btn-add, .btn-icon {
   border: none;
   cursor: pointer;
