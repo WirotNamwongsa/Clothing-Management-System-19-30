@@ -183,26 +183,28 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
-app.post('/api/auth/reset-password', async (req, res) => {
+app.post('/api/auth/reset-password', authenticateToken, async (req, res) => {
   try {
-    const { email, newPassword } = req.body;
+    const { currentPassword, newPassword } = req.body;
 
-    if (!email || !newPassword) {
-      return res.status(400).json({ error: 'Email and new password are required' });
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: 'Current password and new password are required' });
     }
 
-    const normalizedEmail = email.toLowerCase();
-    const result = await pool.query('SELECT id FROM users WHERE email = $1', [normalizedEmail]);
-    const user = result.rows[0];
+    const userResult = await pool.query('SELECT password_hash FROM users WHERE id = $1', [req.user.id]);
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
 
-    if (!user) {
-      return res.status(404).json({ error: 'Email not found' });
+    const passwordMatches = await bcrypt.compare(currentPassword, userResult.rows[0].password_hash);
+    if (!passwordMatches) {
+      return res.status(401).json({ error: 'Current password is incorrect' });
     }
 
     const passwordHash = await bcrypt.hash(newPassword, 10);
-    await pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [passwordHash, user.id]);
+    await pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [passwordHash, req.user.id]);
 
-    res.json({ message: 'Password reset successful. Please login with your new password.' });
+    res.json({ message: 'Password updated successfully. Please login with your new password.' });
   } catch (error) {
     console.error('Error resetting password:', error);
     res.status(500).json({ error: 'Internal server error' });
