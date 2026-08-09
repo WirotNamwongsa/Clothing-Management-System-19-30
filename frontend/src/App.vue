@@ -33,7 +33,7 @@
           />
           <template v-else>
             <input
-              v-model="resetFormState.currentPassword"
+              v-model="resetFormState.identifier"
               type="text"
               placeholder="ชื่อผู้ใช้"
               required
@@ -359,7 +359,7 @@
                 </div>
               </div>
               <div class="form-group">
-                <label for="new-password">New password</label>
+                <label for="new-password">New passwords</label>
                 <div class="password-field">
                   <input id="new-password" v-model="passwordForm.newPassword" class="form-input" :type="showNewPassword ? 'text' : 'password'" required autocomplete="new-password" />
                   <button type="button" class="password-toggle" :aria-label="showNewPassword ? 'Hide new password' : 'Show new password'" :aria-pressed="showNewPassword" @click="showNewPassword = !showNewPassword">
@@ -438,7 +438,7 @@ const authForm = ref({
 })
 
 const resetFormState = ref({
-  currentPassword: '',
+  identifier: '',
   newPassword: '',
   confirmPassword: ''
 })
@@ -631,8 +631,8 @@ const handleAuthSubmit = async () => {
         : 'login'
 
     if (authMode.value === 'reset') {
-      if (!resetFormState.value.currentPassword || !resetFormState.value.newPassword || !resetFormState.value.confirmPassword) {
-        throw new Error('Current password, new password, and confirm password are required')
+      if (!resetFormState.value.identifier || !resetFormState.value.newPassword || !resetFormState.value.confirmPassword) {
+        throw new Error('Username, new password, and confirm password are required')
       }
 
       if (resetFormState.value.newPassword !== resetFormState.value.confirmPassword) {
@@ -643,14 +643,17 @@ const handleAuthSubmit = async () => {
     const payload = authMode.value === 'register'
       ? { name: authForm.value.name, email: authForm.value.email, password: authForm.value.password }
       : authMode.value === 'reset'
-        ? { currentPassword: resetFormState.value.currentPassword, newPassword: resetFormState.value.newPassword }
+        ? {
+            identifier: resetFormState.value.identifier,
+            newPassword: resetFormState.value.newPassword
+          }
         : { email: authForm.value.email, password: authForm.value.password }
 
-    const response = await axios.post(`${API_URL}/auth/${endpoint}`, payload, authMode.value === 'reset' ? { headers: getAuthHeaders() } : undefined)
+    const response = await axios.post(`${API_URL}/auth/${endpoint}`, payload)
 
     if (authMode.value === 'reset') {
       authSuccess.value = response.data.message || 'Password updated successfully. Please login with your new password.'
-      resetFormState.value = { currentPassword: '', newPassword: '', confirmPassword: '' }
+      resetFormState.value = { identifier: '', newPassword: '', confirmPassword: '' }
       authMode.value = 'login'
       return
     }
@@ -680,7 +683,7 @@ const toggleAuthMode = (mode) => {
   if (authMode.value === 'reset') {
     authForm.value = { name: '', email: '', password: '' }
   } else {
-    resetFormState.value = { currentPassword: '', newPassword: '', confirmPassword: '' }
+    resetFormState.value = { identifier: '', newPassword: '', confirmPassword: '' }
   }
 }
 

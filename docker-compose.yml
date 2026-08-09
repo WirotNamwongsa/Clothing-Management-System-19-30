@@ -28,6 +28,11 @@ services:
       DB_USER: postgres
       DB_PASSWORD: postgres
       PORT: 5002
+      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-}
     ports:
       - "5002:5002"
     volumes:

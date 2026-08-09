@@ -6,6 +6,7 @@ const path = require('path');
 const fs = require('fs');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const nodemailer = require('nodemailer');
 require('dotenv').config();
 
 const app = express();
@@ -79,6 +80,40 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
+const generateOtp = () => String(Math.floor(100000 + Math.random() * 900000));
+
+const sendOtpEmail = async (email, otpCode) => {
+  const smtpHost = process.env.SMTP_HOST;
+  const smtpPort = Number(process.env.SMTP_PORT || 587);
+  const smtpUser = process.env.SMTP_USER;
+  const smtpPass = process.env.SMTP_PASS;
+  const smtpFrom = process.env.SMTP_FROM || smtpUser;
+
+  if (!smtpHost || !smtpUser || !smtpPass) {
+    console.log(`OTP for ${email}: ${otpCode}`);
+    return false;
+  }
+
+  const transporter = nodemailer.createTransport({
+    host: smtpHost,
+    port: smtpPort,
+    secure: smtpPort === 465,
+    auth: {
+      user: smtpUser,
+      pass: smtpPass
+    }
+  });
+
+  await transporter.sendMail({
+    from: smtpFrom,
+    to: email,
+    subject: 'Your Wardrobe password reset OTP',
+    text: `Your OTP code is ${otpCode}. It will expire in 5 minutes.`
+  });
+
+  return true;
+};
+
 // Initialize database tables
 const initDB = async () => {
   try {
@@ -111,6 +146,12 @@ const initDB = async () => {
     await pool.query(`
       ALTER TABLE clothing
       ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE CASCADE
+    `);
+
+    await pool.query(`
+      ALTER TABLE users
+      ADD COLUMN IF NOT EXISTS otp_code_hash TEXT,
+      ADD COLUMN IF NOT EXISTS otp_expires TIMESTAMP
     `);
 
     console.log('Database tables initialized');
@@ -183,26 +224,30 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
-app.post('/api/auth/reset-password', authenticateToken, async (req, res) => {
+app.post('/api/auth/reset-password', async (req, res) => {
   try {
-    const { currentPassword, newPassword } = req.body;
+    const { identifier, newPassword } = req.body;
 
-    if (!currentPassword || !newPassword) {
-      return res.status(400).json({ error: 'Current password and new password are required' });
+    if (!identifier || !newPassword) {
+      return res.status(400).json({ error: 'Username and new password are required' });
     }
 
-    const userResult = await pool.query('SELECT password_hash FROM users WHERE id = $1', [req.user.id]);
+    const normalizedIdentifier = String(identifier || '').trim().toLowerCase();
+    const userResult = await pool.query(
+      `SELECT id, name, email
+       FROM users
+       WHERE LOWER(email) = $1 OR LOWER(name) = $2
+       LIMIT 1`,
+      [normalizedIdentifier, normalizedIdentifier]
+    );
+
     if (userResult.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    const passwordMatches = await bcrypt.compare(currentPassword, userResult.rows[0].password_hash);
-    if (!passwordMatches) {
-      return res.status(401).json({ error: 'Current password is incorrect' });
-    }
-
+    const user = userResult.rows[0];
     const passwordHash = await bcrypt.hash(newPassword, 10);
-    await pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [passwordHash, req.user.id]);
+    await pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [passwordHash, user.id]);
 
     res.json({ message: 'Password updated successfully. Please login with your new password.' });
   } catch (error) {
